@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gram Jyoti · Solar & Micro-Grid Potential Twin</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+    <!-- Google Fonts: Chivo, Space Grotesk & Albert Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=Chivo:wght@800;900&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Leaflet GIS Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+       tailwind.config = {
+    theme: {
+        extend: {
+            fontFamily: {
+                sans: ['"Albert Sans"', 'sans-serif'],
+                display: ['"Chivo"', 'sans-serif'],
+                subheading: ['"Space Grotesk"', 'sans-serif'],
+            },
+            colors: {
+                brand: {
+                    forest: '#0d3829',
+                    darkTeal: '#09251c',
+                    sidebar: '#071e16',
+                    activeNav: '#144c38',
+                    sage: '#eaf0ea',
+                    cardBg: '#ffffff',
+                    cardBorder: '#e1e8e2',
+                    textDark: '#1a2e26',
+                    textMuted: '#587065',
+                    gold: '#d97706',
+                    water: '#0284c7'
+                }
+            }
+        }
+    }
+}
+    </script>
+    <style>
+        body {
+            background-color: #f2f6f3;
+            color: #1a2e26;
+        }
+
+        .rural-card {
+            background-color: #ffffff;
+            border: 1px solid #e2ebe4;
+            border-radius: 16px;
+            box-shadow: 0 4px 18px -2px rgba(13, 56, 41, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .rural-card:hover {
+            box-shadow: 0 10px 24px -4px rgba(13, 56, 41, 0.1);
+            border-color: #b9d5c4;
+            transform: translateY(-2px);
+        }
+
+        .rural-hero-pattern {
+            background: linear-gradient(135deg, rgba(9, 37, 28, 0.94) 0%, rgba(13, 56, 41, 0.88) 100%),
+                        url('https://images.unsplash.com/photo-1509391365360-2e959784a276?q=80&w=1600&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center 40%;
+        }
+
+        .leaflet-container {
+            border-radius: 12px;
+        }
+
+        input[type=range] {
+            accent-color: #f59e0b;
+        }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased flex flex-col selection:bg-amber-600 selection:text-white">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-brand-darkTeal text-emerald-50 border-b border-emerald-900/60 sticky top-0 z-50 shadow-md">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3.5">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-display font-extrabold text-lg tracking-tight text-white">ग्राम ज्योति · Gram Jyoti</span>
+                    </div>
+                    <p class="text-[11px] text-emerald-300/80 font-medium">Rural Solar Photovoltaic & Micro-Grid Telemetry</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <span id="api-status-badge" class="text-xs text-amber-300 font-medium flex items-center">
+                    <span class="w-2 h-2 rounded-full bg-slate-400 mr-1.5 inline-block"></span> Initializing...
+                </span>
+                <button id="btn-refresh" onclick="fetchLiveAgroData()" class="group inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-700/60 hover:bg-emerald-600 text-white border border-emerald-500/40 transition active:scale-95 shadow-sm">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 transition-transform duration-500 group-hover:rotate-180" id="refresh-icon"></i>
+                    <span class="hidden sm:inline">Recalculate Yield</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-grow flex max-w-[1600px] w-full mx-auto">
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-brand-sidebar text-emerald-100 hidden md:flex flex-col justify-between py-6 px-4 border-r border-emerald-950 shrink-0">
+            <div class="space-y-6">
+                <div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400/70 px-3">Village Overview</span>
+                    <nav class="mt-2 space-y-1">
+                        <a href="index.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-emerald-200/80 hover:bg-emerald-900/40 hover:text-white transition">
+                            <i data-lucide="layout-dashboard" class="w-4 h-4 text-emerald-400"></i>
+                            Crop Digital Twin
+                        </a>
+                        <a href="solar.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-brand-activeNav text-white border border-emerald-600/40 shadow-sm">
+                            <i data-lucide="sun-medium" class="w-4 h-4 text-amber-400"></i>
+                            Solar & Micro-Grid
+                        </a>
+                        <a href="crop.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-emerald-200/80 hover:bg-emerald-900/40 hover:text-white transition">
+                            <i data-lucide="droplet" class="w-4 h-4 text-sky-400"></i>
+                            Recommended Crops
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <div class="bg-brand-activeNav/60 rounded-xl p-3.5 border border-emerald-700/30 text-xs">
+                <div class="flex items-center gap-2 mb-1.5">
+                    <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+                    <span class="font-bold text-white">Agri-Voltaic Specs</span>
+                </div>
+                <div class="text-[11px] text-emerald-200/90 font-mono" id="sidebar-panel-spec">Mono PERC Bifacial 540W</div>
+                <div class="text-[10px] text-emerald-400/70 mt-1">2.8m Ground Elevation Height</div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 overflow-x-hidden">
+            
+            <!-- Hero Header -->
+            <div class="rural-hero-pattern rounded-2xl p-6 sm:p-8 text-white relative shadow-lg overflow-hidden border border-emerald-800">
+                <div class="max-w-2xl relative z-10 space-y-2">
+                    <!-- <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold">
+                        <i data-lucide="sun" class="w-3.5 h-3.5"></i> PM-KUSUM Component A & C Microgrid Estimator
+                    </div> -->
+                    <h2 class="text-2xl sm:text-3xl font-extrabold font-display tracking-tight text-white leading-tight" id="field-name">
+                        Field Solar Insolation & Micro-Grid Twin
+                    </h2>
+                    <p class="text-xs sm:text-sm text-emerald-100/90 leading-relaxed" id="field-meta">
+                        Evaluating dual-use Agri-PV feasibility, solar pump capacity (5-10 HP), and direct grid feed generation based on local GIS radiation telemetry.
+                    </p>
+                </div>
+
+                <div class="mt-5 pt-4 border-t border-emerald-600/30 flex flex-wrap gap-4 text-xs font-medium text-emerald-200">
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="compass" class="w-3.5 h-3.5 text-amber-400"></i>
+                        <span>Optimal Tilt: <b class="text-white" id="stat-tilt">21° South</b></span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="battery-charging" class="w-3.5 h-3.5 text-amber-400"></i>
+                        <span>Performance Ratio (PR): <b class="text-white">78.4%</b></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Solar Advisory Card -->
+            <div id="solar-advisory-card" class="p-4 rounded-xl border border-amber-200 bg-white flex items-start gap-3.5 shadow-sm">
+                <div id="solar-advisory-icon-wrapper" class="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 mt-0.5">
+                    <i id="solar-advisory-icon" data-lucide="sun-high" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h4 id="solar-advisory-title" class="text-xs font-bold uppercase tracking-wider text-brand-forest font-display">Solar Generation Assessment</h4>
+                    <p id="solar-advisory-text" class="text-xs text-brand-textMuted mt-0.5">Calculating field solar insolation and agricultural feeder sync...</p>
+                </div>
+            </div>
+
+            <!-- KPI Cards -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <!-- Peak Solar Irradiance -->
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Solar Flux (GHI)</span>
+                        <div class="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
+                            <i data-lucide="sun" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-3xl font-extrabold text-amber-700 font-display" id="kpi-irradiance">-- W/m²</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full border border-amber-200 bg-amber-50 text-amber-800" id="kpi-irradiance-status">Reading</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100">Global Horizontal Irradiance received at surface</p>
+                </div>
+
+                <!-- Daily Est. Energy Generation -->
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Est. Daily Yield</span>
+                        <div class="p-2 rounded-xl bg-emerald-50 text-brand-forest border border-emerald-100">
+                            <i data-lucide="zap" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-3xl font-extrabold text-brand-forest font-display" id="kpi-daily-gen">-- kWh</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-800" id="kpi-peak-hours">5.2 PSH</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100">Based on standard 10% farm area Agri-PV layout</p>
+                </div>
+
+                <!-- Solar Pumping Capacity -->
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Solar Pump Offset</span>
+                        <div class="p-2 rounded-xl bg-sky-50 text-brand-water border border-sky-100">
+                            <i data-lucide="gauge" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-3xl font-extrabold text-sky-800 font-display" id="kpi-pump">-- HP</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-sky-50 text-sky-800 border border-sky-200" id="kpi-pump-hrs">-- hrs running</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100">Replaces diesel pump during daytime sunlight hours</p>
+                </div>
+
+                <!-- Annual Farmer Revenue Offset -->
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Est. Feeder Revenue</span>
+                        <div class="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            <i data-lucide="indian-rupee" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-3xl font-extrabold text-brand-forest font-display" id="kpi-revenue">₹ --</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">₹3.15 / unit</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100">Surplus clean energy feed under rural net-metering</p>
+                </div>
+            </section>
+
+            <!-- 3D Agri-PV Digital Twin Simulation -->
+            <section class="rural-card overflow-hidden">
+                <div class="p-3.5 border-b border-brand-cardBorder flex flex-wrap items-center justify-between gap-3 bg-brand-sage/40">
+                    <div class="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-brand-cardBorder text-xs shadow-sm">
+                        <button onclick="switchSolarMode('agripv')" id="tab-agripv" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold transition bg-brand-forest text-white shadow-sm">
+                            <i data-lucide="sun" class="w-3.5 h-3.5 text-amber-400"></i>
+                            3D Agri-Voltaic Twin
+                        </button>
+                        <button onclick="switchSolarMode('shadow')" id="tab-shadow" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition text-brand-textMuted hover:text-brand-forest">
+                            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                            Diurnal Sun Tracker
+                        </button>
+                        <button onclick="switchSolarMode('spectral')" id="tab-spectral" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition text-brand-textMuted hover:text-brand-forest">
+                            <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+                            PAR Spectrum & PAR Under Canopy
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 text-xs font-medium text-brand-forest">
+                            <span>Sun Position:</span>
+                            <input type="range" id="sun-slider" min="6" max="18" step="0.5" value="12" oninput="adjustSunPosition(this.value)" class="w-24 sm:w-32 h-1.5 bg-emerald-200 rounded-lg cursor-pointer">
+                            <span id="sun-time-label" class="w-12 font-mono font-bold text-amber-700">12:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative w-full h-[460px] bg-[#091510] overflow-hidden">
+                    <div id="canvas-3d-solar" class="absolute inset-0 w-full h-full"></div>
+                    <canvas id="canvas-2d-solar" class="absolute inset-0 w-full h-full hidden"></canvas>
+                </div>
+            </section>
+
+            <!-- Bottom Interactive Calculator & GIS Area -->
+            <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Interactive Solar Capacity Sizer -->
+                <div class="rural-card p-5 lg:col-span-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-3.5">
+                            <div>
+                                <h3 class="text-sm font-bold text-brand-forest flex items-center gap-2 font-display">
+                                    <i data-lucide="sliders" class="w-4 h-4 text-amber-500"></i>
+                                    Agri-PV Capacity Sizer
+                                </h3>
+                                <p class="text-[11px] text-brand-textMuted">Estimate potential for field plots</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4 text-xs">
+                            <div>
+                                <div class="flex justify-between font-semibold text-brand-textDark mb-1">
+                                    <span>Field Allocation for Panels</span>
+                                    <span id="slider-alloc-val" class="text-amber-600 font-bold">15%</span>
+                                </div>
+                                <input type="range" id="slider-alloc" min="5" max="40" step="5" value="15" oninput="recomputeSolarYield()" class="w-full">
+                                <p class="text-[10px] text-brand-textMuted mt-1">Allows inter-cropping of shade-tolerant crops (Turmeric, Ginger, Pulses).</p>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between font-semibold text-brand-textDark mb-1">
+                                    <span>Panel Efficiency Rating</span>
+                                    <span id="slider-eff-val" class="text-emerald-700 font-bold">21.5%</span>
+                                </div>
+                                <input type="range" id="slider-eff" min="17" max="23" step="0.5" value="21.5" oninput="recomputeSolarYield()" class="w-full">
+                            </div>
+
+                            <div class="bg-brand-sage/50 p-3 rounded-xl border border-brand-cardBorder space-y-2">
+                                <div class="flex justify-between text-brand-textMuted">
+                                    <span>Recommended PV Capacity:</span>
+                                    <strong class="text-brand-forest" id="calc-kwp">-- kWp</strong>
+                                </div>
+                                <div class="flex justify-between text-brand-textMuted">
+                                    <span>Estimated CO₂ Offset:</span>
+                                    <strong class="text-emerald-700" id="calc-co2">-- Tons/yr</strong>
+                                </div>
+                                <div class="flex justify-between text-brand-textMuted">
+                                    <span>Canopy Evapotranspiration Drop:</span>
+                                    <strong class="text-sky-700">-22% (Water saved)</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg">
+                        <i data-lucide="info" class="w-4 h-4 shrink-0 text-amber-600"></i>
+                        <span>Qualifies for 30% Central Financial Assistance under PM KUSUM Yojana scheme.</span>
+                    </div>
+                </div>
+
+                <!-- Leaflet Solar Heatmap GIS Map -->
+                <div class="rural-card p-5 lg:col-span-8 flex flex-col">
+                    <div class="flex items-center justify-between mb-3.5">
+                        <div>
+                            <h3 class="text-sm font-bold text-brand-forest flex items-center gap-2 font-display">
+                                <i data-lucide="map-pin" class="w-4 h-4 text-amber-500"></i>
+                                Solar Radiation & Shading Overlay
+                            </h3>
+                            <p class="text-[11px] text-brand-textMuted">High-resolution GIS boundary with insolation contour heatmap</p>
+                        </div>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200" id="solar-map-area">Field Area: -- ha</span>
+                    </div>
+                    <div id="solar-map" class="w-full h-64 rounded-xl border border-brand-cardBorder flex-grow z-0 overflow-hidden shadow-inner"></div>
+                </div>
+
+            </section>
+
+            <!-- Hourly Irradiance & Generation Profile -->
+            <section class="rural-card p-6 border-l-4 border-l-amber-500">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+                            <i data-lucide="sun-medium" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-brand-forest font-display">Hourly Solar Radiation & AC Power Generation Profile</h3>
+                            <p class="text-xs text-brand-textMuted">Clear-sky versus forecasted actual GHI curve for diurnal microgrid dispatch</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shadow-sm" id="chart-solar-summary">
+                        Peak generation window: 10:30 AM - 3:00 PM
+                    </span>
+                </div>
+                <div class="relative w-full h-60 mt-2">
+                    <canvas id="solarHourlyChart"></canvas>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-brand-darkTeal text-emerald-200/80 text-xs py-4 px-6 border-t border-emerald-900 mt-auto">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <i data-lucide="sun" class="w-4 h-4 text-amber-400"></i>
+                <span class="font-medium text-white">Gram Jyoti Smart Rural Renewable Telemetry Initiative</span>
+            </div>
+            <div class="text-[11px] text-emerald-300">
+                Panchayat Raj & Rural Technology Resource Framework · Solar Micro-Grid Dispatch
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /* =========================================================================
+           CENTRALIZED CONFIG & STATE
+           ========================================================================= */
+        const APP_CONFIG = {
+            apiKey: 'c9a9411578c3859ffffd575268a1a714',
+            polygonId: '6ab02d42ca96276bcc3c371a',
+            apiBaseUrl: 'https://api.agromonitoring.com/agro/1.0'
+        };
+
+        const solarState = {
+            irradiance: 760, // W/m2
+            dailyYieldKwh: 480,
+            areaHa: 2.4,
+            sunHour: 12,
+            activeMode: 'agripv',
+            polygon: null
+        };
+
+        let leafletMap = null;
+        let leafletGeoLayer = null;
+        let solarChartInstance = null;
+        let scene, camera, renderer, controls;
+        let panelsGroup, cropGroup, sunLight, sunSphere;
+
+        const canvas2d = document.getElementById('canvas-2d-solar');
+        const ctx2d = canvas2d.getContext('2d');
+
+        async function fetchAgro(endpoint, params = {}) {
+            const urlObj = new URL(`${APP_CONFIG.apiBaseUrl}${endpoint}`);
+            urlObj.searchParams.set('appid', APP_CONFIG.apiKey);
+            for (const [key, val] of Object.entries(params)) {
+                urlObj.searchParams.set(key, val);
+            }
+            const targetUrl = urlObj.toString();
+            const proxyProviders = [
+                targetUrl,
+                `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+            ];
+
+            let lastError = null;
+            for (const url of proxyProviders) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4500);
+                    const res = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (res.ok) return await res.json();
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+            throw lastError || new Error(`Failed to load ${endpoint}`);
+        }
+
+        async function fetchLiveAgroData() {
+            const refreshIcon = document.getElementById('refresh-icon');
+            const badge = document.getElementById('api-status-badge');
+            if (refreshIcon) refreshIcon.classList.add('animate-spin');
+            if (badge) badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping mr-1.5 inline-block"></span> Computing Solar Insolation...';
+
+            let hasLiveHit = false;
+
+            try {
+                // Fetch field Polygon for geographical boundaries
+                const polyData = await fetchAgro(`/polygons/${APP_CONFIG.polygonId}`);
+                if (polyData && polyData.geo_json) {
+                    hasLiveHit = true;
+                    solarState.polygon = polyData;
+                    if (polyData.area) solarState.areaHa = polyData.area;
+
+                    const fieldName = document.getElementById('field-name');
+                    if (fieldName) fieldName.innerText = polyData.name ? `${polyData.name} · Solar Potential` : 'Field Solar Potential Twin';
+                    
+                    const fieldMeta = document.getElementById('field-meta');
+                    if (fieldMeta) fieldMeta.innerText = `Area: ${solarState.areaHa.toFixed(1)} ha · Lat: 20.59°N Lon: 78.96°E · Prime Agro-Voltaic Candidate Zone`;
+
+                    const mapArea = document.getElementById('solar-map-area');
+                    if (mapArea) mapArea.innerText = `Field Area: ${solarState.areaHa.toFixed(1)} ha`;
+
+                    renderSolarMap(polyData.geo_json);
+                }
+            } catch (err) {
+                console.warn('API sync throttled, fallback applied:', err.message);
+                loadFallbackSolarData();
+            } finally {
+                if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+                if (hasLiveHit && badge) {
+                    badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 mr-1.5 inline-block"></span> Solar GIS Connected';
+                }
+                recomputeSolarYield();
+                renderHourlyChart();
+            }
+        }
+
+        function loadFallbackSolarData() {
+            const badge = document.getElementById('api-status-badge');
+            if (badge) badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 mr-1.5 inline-block"></span> Model Simulation Mode';
+
+            const mockGeoJson = {
+                type: "Feature",
+                properties: {},
+                geometry: {
+                    type: "Polygon",
+                    coordinates: [[
+                        [78.9620, 20.5930],
+                        [78.9660, 20.5935],
+                        [78.9655, 20.5980],
+                        [78.9610, 20.5975],
+                        [78.9620, 20.5930]
+                    ]]
+                }
+            };
+            solarState.areaHa = 2.4;
+            renderSolarMap(mockGeoJson);
+        }
+
+        function recomputeSolarYield() {
+            const allocPercent = parseInt(document.getElementById('slider-alloc').value) || 15;
+            const effPercent = parseFloat(document.getElementById('slider-eff').value) || 21.5;
+
+            document.getElementById('slider-alloc-val').innerText = `${allocPercent}%`;
+            document.getElementById('slider-eff-val').innerText = `${effPercent}%`;
+
+            // Standard Solar Calculations
+            // 1 hectare = 10,000 m2
+            const allocatedSqMeters = (solarState.areaHa * 10000) * (allocPercent / 100);
+            
+            // Peak Capacity in kWp (assuming standard 1.95m2 per 400W panel or ~200W/m2)
+            const capacityKwp = Math.round(allocatedSqMeters * (effPercent / 100) * 0.9); // with packing factor
+            const dailyKwh = Math.round(capacityKwp * 5.2 * 0.78); // 5.2 Peak Sun Hours * 78% PR
+            const pumpHp = (capacityKwp * 0.45).toFixed(1);
+            const annualRevenue = Math.round(dailyKwh * 365 * 3.15 * 0.85); // 85% exported to grid
+            const co2Offset = (dailyKwh * 365 * 0.00082).toFixed(1); // 0.82 kg CO2/kWh
+
+            // Update KPIs
+            document.getElementById('kpi-irradiance').innerText = `842 W/m²`;
+            document.getElementById('kpi-irradiance-status').innerText = `Clear Sky High`;
+            document.getElementById('kpi-daily-gen').innerText = `${dailyKwh.toLocaleString()} kWh`;
+            document.getElementById('kpi-pump').innerText = `${pumpHp} HP`;
+            document.getElementById('kpi-pump-hrs').innerText = `~8.5 hrs/day`;
+            document.getElementById('kpi-revenue').innerText = `₹ ${(annualRevenue / 100000).toFixed(2)} Lakh/yr`;
+
+            document.getElementById('calc-kwp').innerText = `${capacityKwp} kWp`;
+            document.getElementById('calc-co2').innerText = `${co2Offset} Tons/yr`;
+
+            const advCard = document.getElementById('solar-advisory-card');
+            const advText = document.getElementById('solar-advisory-text');
+            if (advCard && advText) {
+                advText.innerText = `With ${allocPercent}% dual-use land allocation, this field can support a ${capacityKwp} kWp elevated PV microgrid, eliminating diesel pump requirements and powering ~${Math.round(dailyKwh / 8)} rural households.`;
+            }
+        }
+
+        /* =========================================================================
+           LEAFLET GIS SOLAR MAP OVERLAY
+           ========================================================================= */
+        function renderSolarMap(geoJson) {
+            const mapEl = document.getElementById('solar-map');
+            if (!mapEl) return;
+
+            if (!leafletMap) {
+                leafletMap = L.map('solar-map', { attributionControl: false }).setView([20.5937, 78.9629], 14);
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 19
+                }).addTo(leafletMap);
+            }
+
+            if (leafletGeoLayer) leafletMap.removeLayer(leafletGeoLayer);
+
+            leafletGeoLayer = L.geoJSON(geoJson, {
+                style: {
+                    color: '#f59e0b',
+                    weight: 3.5,
+                    opacity: 1,
+                    fillColor: '#fbbf24',
+                    fillOpacity: 0.4
+                }
+            }).addTo(leafletMap);
+
+            // Add Solar Radiation Heat Indicator Marker
+            const center = leafletGeoLayer.getBounds().getCenter();
+            L.circle(center, {
+                radius: 120,
+                color: '#d97706',
+                fillColor: '#f59e0b',
+                fillOpacity: 0.35,
+                weight: 1.5,
+                dashArray: '4, 4'
+            }).addTo(leafletMap).bindPopup("<b>Insolation Zone A</b><br>Average 5.4 kWh/m²/day GHI");
+
+            try {
+                leafletMap.fitBounds(leafletGeoLayer.getBounds(), { padding: [24, 24] });
+            } catch (e) {
+                console.warn('Map bounds fit:', e);
+            }
+        }
+
+        /* =========================================================================
+           HOURLY SOLAR IRRADIANCE & PRODUCTION CHART
+           ========================================================================= */
+        function renderHourlyChart() {
+            const chartCanvas = document.getElementById('solarHourlyChart');
+            if (!chartCanvas) return;
+            const ctx = chartCanvas.getContext('2d');
+            if (solarChartInstance) solarChartInstance.destroy();
+
+            const hours = ['6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM'];
+            const ghiProfile = [40, 150, 380, 620, 810, 920, 960, 910, 790, 590, 360, 140, 20];
+            const generationKwh = ghiProfile.map(w => parseFloat((w * 0.42).toFixed(1)));
+
+            const gradGHI = ctx.createLinearGradient(0, 0, 0, 220);
+            gradGHI.addColorStop(0, 'rgba(245, 158, 11, 0.4)');
+            gradGHI.addColorStop(1, 'rgba(245, 158, 11, 0.02)');
+
+            solarChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: hours,
+                    datasets: [
+                        {
+                            label: 'Solar Irradiance (GHI W/m²)',
+                            data: ghiProfile,
+                            borderColor: '#d97706',
+                            backgroundColor: gradGHI,
+                            borderWidth: 2.5,
+                            fill: true,
+                            tension: 0.4,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Estimated Microgrid AC Power (kW)',
+                            data: generationKwh,
+                            borderColor: '#10b981',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0.35,
+                            pointRadius: 3.5,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: { color: '#1a2e26', font: { size: 11, family: 'Plus Jakarta Sans' } }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: { display: true, text: 'GHI (W/m²)', color: '#d97706' },
+                            ticks: { color: '#587065', font: { size: 10 } },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            title: { display: true, text: 'Power Output (kW)', color: '#10b981' },
+                            ticks: { color: '#587065', font: { size: 10 } },
+                            grid: { drawOnChartArea: false }
+                        },
+                        x: {
+                            ticks: { color: '#587065', font: { size: 10 } },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        /* =========================================================================
+           3D THREE.JS AGRI-VOLTAIC SIMULATOR
+           ========================================================================= */
+        function init3DSolarScene() {
+            const container = document.getElementById('canvas-3d-solar');
+            if (!container) return;
+            const w = container.clientWidth || 800;
+            const h = container.clientHeight || 460;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a1611);
+
+            camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
+            camera.position.set(0, 18, 28);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2.05;
+
+            // Ambient & Sun Lights
+            const ambient = new THREE.AmbientLight(0xffffff, 0.65);
+            scene.add(ambient);
+
+            sunLight = new THREE.DirectionalLight(0xfffaed, 1.8);
+            sunLight.position.set(0, 30, 0);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 1024;
+            sunLight.shadow.mapSize.height = 1024;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 80;
+            sunLight.shadow.camera.left = -20;
+            sunLight.shadow.camera.right = 20;
+            sunLight.shadow.camera.top = 20;
+            sunLight.shadow.camera.bottom = -20;
+            scene.add(sunLight);
+
+            // Sun Visual Mesh
+            const sunGeo = new THREE.SphereGeometry(1.2, 16, 16);
+            const sunMat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
+            sunSphere = new THREE.Mesh(sunGeo, sunMat);
+            scene.add(sunSphere);
+
+            // Farm Ground
+            const groundGeo = new THREE.BoxGeometry(24, 1, 24);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x221c15, roughness: 0.9 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.position.y = -0.5;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            buildAgriPVSystem();
+            adjustSunPosition(12);
+
+            window.addEventListener('resize', onWindowResize);
+            animate3DSolar();
+        }
+
+        function buildAgriPVSystem() {
+            panelsGroup = new THREE.Group();
+            cropGroup = new THREE.Group();
+            scene.add(panelsGroup);
+            scene.add(cropGroup);
+
+            // Elevated Solar Panel Modules
+            const panelMat = new THREE.MeshStandardMaterial({
+                color: 0x1e3a8a, // Monocrystalline Navy
+                metalness: 0.85,
+                roughness: 0.25
+            });
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.3 });
+            const pylonMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.7, roughness: 0.4 });
+
+            // Create 3 parallel arrays of elevated bifacial solar tables
+            for (let row = -1; row <= 1; row++) {
+                const zPos = row * 6.5;
+
+                // Elevated Pylons (2.8m height in scale)
+                const pylonGeo = new THREE.CylinderGeometry(0.1, 0.1, 4.5);
+                [-6, 0, 6].forEach(x => {
+                    const pylon = new THREE.Mesh(pylonGeo, pylonMat);
+                    pylon.position.set(x, 2.25, zPos);
+                    pylon.castShadow = true;
+                    panelsGroup.add(pylon);
+                });
+
+                // Solar Panels String
+                const panelRowGeo = new THREE.BoxGeometry(15, 0.1, 2.2);
+                const panelTable = new THREE.Mesh(panelRowGeo, panelMat);
+                panelTable.position.set(0, 4.5, zPos);
+                panelTable.rotation.x = 0.36; // 21 degree tilt toward South
+                panelTable.castShadow = true;
+                panelsGroup.add(panelTable);
+            }
+
+            // Shade-tolerant crops growing under and between panels
+            const cropGeo = new THREE.ConeGeometry(0.2, 0.7, 5);
+            const cropMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.8 });
+
+            for (let x = -8; x <= 8; x += 1.2) {
+                for (let z = -9; z <= 9; z += 1.2) {
+                    const plant = new THREE.Mesh(cropGeo, cropMat);
+                    plant.position.set(x, 0.35, z);
+                    plant.castShadow = true;
+                    cropGroup.add(plant);
+                }
+            }
+        }
+
+        function adjustSunPosition(hourVal) {
+            solarState.sunHour = parseFloat(hourVal);
+            const label = document.getElementById('sun-time-label');
+            const h = Math.floor(solarState.sunHour);
+            const m = solarState.sunHour % 1 === 0 ? '00' : '30';
+            if (label) label.innerText = `${h.toString().padStart(2, '0')}:${m}`;
+
+            // Calculate Sun Arc across Sky (-X to +X)
+            const sunAngle = ((solarState.sunHour - 6) / 12) * Math.PI; // 0 to PI
+            const radius = 28;
+            const x = -Math.cos(sunAngle) * radius;
+            const y = Math.max(1, Math.sin(sunAngle) * radius);
+            const z = 12;
+
+            if (sunLight && sunSphere) {
+                sunLight.position.set(x, y, z);
+                sunSphere.position.set(x, y, z);
+                const intensity = Math.sin(sunAngle) * 2.0;
+                sunLight.intensity = Math.max(0.1, intensity);
+            }
+        }
+
+        function animate3DSolar() {
+            requestAnimationFrame(animate3DSolar);
+            if (controls) controls.update();
+            if (renderer && scene && camera) renderer.render(scene, camera);
+        }
+
+        function switchSolarMode(mode) {
+            solarState.activeMode = mode;
+            ['agripv', 'shadow', 'spectral'].forEach(m => {
+                const btn = document.getElementById(`tab-${m}`);
+                if (btn) {
+                    if (m === mode) {
+                        btn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold transition bg-brand-forest text-white shadow-sm';
+                    } else {
+                        btn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition text-brand-textMuted hover:text-brand-forest';
+                    }
+                }
+            });
+
+            const container3D = document.getElementById('canvas-3d-solar');
+            if (mode === 'agripv' || mode === 'shadow') {
+                if (container3D) container3D.classList.remove('hidden');
+                if (canvas2d) canvas2d.classList.add('hidden');
+            } else {
+                if (container3D) container3D.classList.add('hidden');
+                if (canvas2d) canvas2d.classList.remove('hidden');
+                resizeSolar2D();
+            }
+        }
+
+        function resizeSolar2D() {
+            if (!canvas2d) return;
+            canvas2d.width = canvas2d.clientWidth * window.devicePixelRatio;
+            canvas2d.height = canvas2d.clientHeight * window.devicePixelRatio;
+        }
+
+        function renderSolar2DLoop() {
+            if (solarState.activeMode === 'spectral' && canvas2d && ctx2d) {
+                const w = canvas2d.width;
+                const h = canvas2d.height;
+                ctx2d.clearRect(0, 0, w, h);
+                drawPARSpectralGraph(w, h);
+            }
+            requestAnimationFrame(renderSolar2DLoop);
+        }
+
+        function drawPARSpectralGraph(w, h) {
+            ctx2d.save();
+            ctx2d.scale(window.devicePixelRatio, window.devicePixelRatio);
+            const cw = w / window.devicePixelRatio;
+            const ch = h / window.devicePixelRatio;
+
+            ctx2d.fillStyle = '#0f241a';
+            ctx2d.fillRect(0, 0, cw, ch);
+
+            ctx2d.fillStyle = '#fef08a';
+            ctx2d.font = 'bold 13px "Outfit", sans-serif';
+            ctx2d.fillText('PAR (Photosynthetically Active Radiation) Under Agri-PV Canopy', 24, 36);
+
+            ctx2d.font = '11px "Plus Jakarta Sans", sans-serif';
+            ctx2d.fillStyle = '#a7f3d0';
+            ctx2d.fillText('Wavelength 400nm - 700nm transmission maintains ~68% plant growth light efficiency', 24, 56);
+
+            // Draw spectrum wave
+            ctx2d.beginPath();
+            ctx2d.moveTo(40, ch - 80);
+            for (let x = 40; x < cw - 40; x += 10) {
+                const prog = (x - 40) / (cw - 80);
+                const y = (ch - 80) - Math.sin(prog * Math.PI) * (ch * 0.45);
+                ctx2d.lineTo(x, y);
+            }
+            ctx2d.strokeStyle = '#f59e0b';
+            ctx2d.lineWidth = 3;
+            ctx2d.stroke();
+
+            ctx2d.restore();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-3d-solar');
+            if (!container || !camera || !renderer) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            resizeSolar2D();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) lucide.createIcons();
+            init3DSolarScene();
+            resizeSolar2D();
+            renderSolar2DLoop();
+            fetchLiveAgroData();
+        });
+    </script>
+</body>
+</html>

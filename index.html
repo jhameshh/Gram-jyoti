@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gram Jyoti · Smart Village Agricultural Twin</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+<!-- Google Fonts: Chivo, Space Grotesk & Albert Sans -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=Chivo:wght@800;900&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Leaflet GIS Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+    theme: {
+        extend: {
+            fontFamily: {
+                sans: ['"Albert Sans"', 'sans-serif'],
+                display: ['"Chivo"', 'sans-serif'],
+                subheading: ['"Space Grotesk"', 'sans-serif'],
+            },
+            colors: {
+                brand: {
+                    forest: '#0d3829',
+                    darkTeal: '#09251c',
+                    sidebar: '#071e16',
+                    activeNav: '#144c38',
+                    sage: '#eaf0ea',
+                    cardBg: '#ffffff',
+                    cardBorder: '#e1e8e2',
+                    textDark: '#1a2e26',
+                    textMuted: '#587065',
+                    gold: '#d97706',
+                    water: '#0284c7'
+                }
+            }
+        }
+    }
+}
+    </script>
+    <style>
+        body {
+            background-color: #f2f6f3;
+            color: #1a2e26;
+        }
+
+        .rural-card {
+            background-color: #ffffff;
+            border: 1px solid #e2ebe4;
+            border-radius: 16px;
+            box-shadow: 0 4px 18px -2px rgba(13, 56, 41, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .rural-card:hover {
+            box-shadow: 0 10px 24px -4px rgba(13, 56, 41, 0.1);
+            border-color: #b9d5c4;
+            transform: translateY(-2px);
+        }
+
+        .rural-hero-pattern {
+            background: linear-gradient(135deg, rgba(9, 37, 28, 0.94) 0%, rgba(13, 56, 41, 0.88) 100%),
+                        url('https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center 60%;
+        }
+
+        .leaflet-container {
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased flex flex-col selection:bg-emerald-600 selection:text-white">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-brand-darkTeal text-emerald-50 border-b border-emerald-900/60 sticky top-0 z-50 shadow-md">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            
+            <div class="flex items-center space-x-3.5">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-display font-extrabold text-lg tracking-tight text-white">ग्राम ज्योति · Gram Jyoti</span>
+                    </div>
+                    <p class="text-[11px] text-emerald-300/80 font-medium">Digital Agriculture & Sustainable Rural Telemetry</p>
+                </div>
+            </div>
+
+            <!-- Right Header Actions -->
+            <div class="flex items-center space-x-3">
+                <span id="api-status-badge" class="text-xs text-emerald-300 font-medium flex items-center">
+                    <span class="w-2 h-2 rounded-full bg-slate-400 mr-1.5 inline-block"></span> Initializing...
+                </span>
+                <button id="btn-refresh" onclick="fetchLiveAgroData()" class="group inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-700/60 hover:bg-emerald-600 text-white border border-emerald-500/40 transition active:scale-95 shadow-sm">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 transition-transform duration-500 group-hover:rotate-180" id="refresh-icon"></i>
+                    <span class="hidden sm:inline">Sync Data</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-grow flex max-w-[1600px] w-full mx-auto">
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-brand-sidebar text-emerald-100 hidden md:flex flex-col justify-between py-6 px-4 border-r border-emerald-950 shrink-0">
+            <div class="space-y-6">
+                <div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400/70 px-3">Village Overview</span>
+                    <nav class="mt-2 space-y-1">
+                        <a href="index.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-brand-activeNav text-white border border-emerald-600/40 shadow-sm">
+                            <i data-lucide="layout-dashboard" class="w-4 h-4 text-emerald-400"></i>
+                            Crop Digital Twin
+                        </a>
+                        <a href="solar.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-emerald-200/80 hover:bg-emerald-900/40 hover:text-white transition">
+                            <i data-lucide="sun-medium" class="w-4 h-4 text-amber-400"></i>
+                            Solar & Micro-Grid
+                        </a>
+                        <a href="crop.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-emerald-200/80 hover:bg-emerald-900/40 hover:text-white transition">
+                            <i data-lucide="droplet" class="w-4 h-4 text-sky-400"></i>
+                            Recommended Crops
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Credentials Quick Check Widget -->
+            <div class="bg-brand-activeNav/60 rounded-xl p-3.5 border border-emerald-700/30 text-xs">
+                <div class="flex items-center gap-2 mb-1.5">
+                    <i data-lucide="key" class="w-4 h-4 text-amber-400"></i>
+                    <span class="font-bold text-white">Active Sensor Config</span>
+                </div>
+                <div class="text-[11px] text-emerald-200/90 font-mono truncate" id="sidebar-poly-label">Poly: ...</div>
+                <div class="text-[10px] text-emerald-400/70 mt-1">Configured in APP_CONFIG</div>
+            </div>
+        </aside>
+
+        <!-- Main Body -->
+        <main class="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 overflow-x-hidden">
+            
+            <!-- Rural Hero Landscape Section -->
+            <div class="rural-hero-pattern rounded-2xl p-6 sm:p-8 text-white relative shadow-lg overflow-hidden border border-emerald-800">
+                <div class="max-w-2xl relative z-10 space-y-2">
+                    <h2 class="text-2xl sm:text-3xl font-extrabold font-display tracking-tight text-white leading-tight" id="field-name">
+                        Field Digital Twin Dashboard
+                    </h2>
+                    <p class="text-xs sm:text-sm text-emerald-100/90 leading-relaxed" id="field-meta">
+                        Real-time bio-telemetry, root moisture, and multispectral vegetative indexing powered by rural satellite feeds.
+                    </p>
+                </div>
+
+                <div class="mt-5 pt-4 border-t border-emerald-600/30 flex flex-wrap gap-4 text-xs font-medium text-emerald-200">
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="clock" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Sync Interval: Continuous Satellite Pass</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kisan Advisory Banner -->
+            <div id="advisory-card" class="p-4 rounded-xl border border-emerald-200 bg-white flex items-start gap-3.5 shadow-sm">
+                <div id="advisory-icon-wrapper" class="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 mt-0.5">
+                    <i id="advisory-icon" data-lucide="check-circle-2" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h4 id="advisory-title" class="text-xs font-bold uppercase tracking-wider text-brand-forest font-display">System Status</h4>
+                    <p id="advisory-text" class="text-xs text-brand-textMuted mt-0.5">Initializing agro telemetry feeds...</p>
+                </div>
+            </div>
+
+            <!-- Vital KPI Cards -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <!-- Crop Greenness (NDVI) -->
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Crop Greenness (NDVI)</span>
+                        <div class="p-2 rounded-xl bg-emerald-50 text-brand-forest border border-emerald-100">
+                            <i data-lucide="leaf" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-3xl font-extrabold text-brand-forest font-display" id="kpi-ndvi">--</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-800" id="kpi-ndvi-status">Syncing</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100">Scale: 0.0 (bare soil) to 1.0 (dense canopy vigor)</p>
+                </div>
+
+                <!-- Root Moisture -->
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Root Moisture (10cm)</span>
+                        <div class="p-2 rounded-xl bg-sky-50 text-brand-water border border-sky-100">
+                            <i data-lucide="droplets" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-3xl font-extrabold text-brand-water font-display" id="kpi-moisture">--%</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full border border-sky-200 bg-sky-50 text-sky-800" id="kpi-moisture-status">Syncing</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100">Subsoil water content for optimal transpiration</p>
+                </div>
+
+                <!-- Subsoil Warmth -->
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Subsoil Warmth (10cm)</span>
+                        <div class="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-100">
+                            <i data-lucide="thermometer" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-3xl font-extrabold text-amber-800 font-display" id="kpi-temp">--°C</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200" id="kpi-surface-temp">Surface: --°C</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100">Essential for biological root assimilation</p>
+                </div>
+
+                <!-- Village Weather -->
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Village Weather</span>
+                        <div class="p-2 rounded-xl bg-emerald-50 text-brand-forest border border-emerald-100">
+                            <i data-lucide="wind" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-3xl font-extrabold text-brand-forest font-display" id="kpi-wind">-- km/h</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-sky-50 text-sky-800 border border-sky-200" id="kpi-rain">Rain: 0 mm</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100" id="kpi-weather-desc">Reading local microclimate...</p>
+                </div>
+            </section>
+
+            <!-- Simulation & Digital Farm Twin Section -->
+            <section class="rural-card overflow-hidden">
+                <div class="p-3.5 border-b border-brand-cardBorder flex flex-wrap items-center justify-between gap-3 bg-brand-sage/40">
+                    <div class="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-brand-cardBorder text-xs shadow-sm">
+                        <button onclick="switchMode('3d')" id="tab-3d" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold transition bg-brand-forest text-white shadow-sm">
+                            <i data-lucide="box" class="w-3.5 h-3.5"></i>
+                            3D Field View
+                        </button>
+                        <button onclick="switchMode('isometric')" id="tab-isometric" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition text-brand-textMuted hover:text-brand-forest">
+                            <i data-lucide="grid" class="w-3.5 h-3.5"></i>
+                            Farm Grid
+                        </button>
+                        <button onclick="switchMode('cross')" id="tab-cross" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition text-brand-textMuted hover:text-brand-forest">
+                            <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+                            Root Cross-Section
+                        </button>
+                        <button onclick="switchMode('satellite')" id="tab-satellite" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition text-brand-textMuted hover:text-brand-forest">
+                            <i data-lucide="scan" class="w-3.5 h-3.5"></i>
+                            Multispectral Radar
+                        </button>
+                    </div>
+
+                    <span class="text-xs text-brand-forest flex items-center gap-2 font-medium" id="sim-indicator">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse ring-4 ring-emerald-200"></span>
+                        Interactive 3D Engine Active (Drag to Rotate)
+                    </span>
+                </div>
+
+                <div class="relative w-full h-[460px] bg-[#0c1813] overflow-hidden">
+                    <div id="canvas-3d-container" class="absolute inset-0 w-full h-full"></div>
+                    <canvas id="canvas-2d" class="absolute inset-0 w-full h-full hidden"></canvas>
+                </div>
+            </section>
+
+            <!-- Lower Grid: Map & Trends -->
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Leaflet Village GIS Map -->
+                <div class="rural-card p-5 flex flex-col">
+                    <div class="flex items-center justify-between mb-3.5">
+                        <div>
+                            <h3 class="text-sm font-bold text-brand-forest flex items-center gap-2 font-display">
+                                <i data-lucide="map-pin" class="w-4 h-4 text-emerald-600"></i>
+                                Farm Boundary
+                            </h3>
+                            <p class="text-[11px] text-brand-textMuted">High-resolution village satellite survey</p>
+                        </div>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200" id="map-area">Area: -- ha</span>
+                    </div>
+                    <div id="map" class="w-full h-64 rounded-xl border border-brand-cardBorder flex-grow z-0 overflow-hidden shadow-inner"></div>
+                </div>
+
+                <!-- 30-Day NDVI History Chart -->
+                <div class="rural-card p-5 flex flex-col">
+                    <div class="flex items-center justify-between mb-3.5">
+                        <div>
+                            <h3 class="text-sm font-bold text-brand-forest flex items-center gap-2 font-display">
+                                <i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i>
+                                30-Day Crop Vigor History (NDVI)
+                            </h3>
+                            <p class="text-[11px] text-brand-textMuted">Remote Sentinel spectral readings</p>
+                        </div>
+                        <span class="text-xs text-brand-textMuted font-medium">Historical Passes</span>
+                    </div>
+                    <div class="relative w-full h-64 flex-grow">
+                        <canvas id="historyChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Rain Forecast Bar Section -->
+            <section class="rural-card p-6 border-l-4 border-l-brand-water">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2.5 rounded-xl bg-sky-50 text-brand-water border border-sky-200">
+                            <i data-lucide="cloud-rain" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-brand-forest font-display">48-Hour Precipitation & Irrigation Forecast</h3>
+                            <p class="text-xs text-brand-textMuted">Predictive hyper-local precipitation intervals (3-hour slots) for farm water scheduling</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-semibold px-3 py-1 rounded-full bg-sky-50 text-sky-800 border border-sky-200 shadow-sm" id="rain-forecast-summary">
+                        Loading forecast...
+                    </span>
+                </div>
+                <div class="relative w-full h-52 mt-2">
+                    <canvas id="rainForecastChart"></canvas>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <footer class="bg-brand-darkTeal text-emerald-200/80 text-xs py-4 px-6 border-t border-emerald-900 mt-auto">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i>
+                <span class="font-medium text-white">Gram Jyoti Smart Rural Development Initiative</span>
+            </div>
+            <div class="text-[11px] text-emerald-300">
+                Panchayat Raj & Rural Technology Resource Framework · Real-time Agro Telemetry
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /* =========================================================================
+           1. CENTRALIZED API & CREDENTIALS CONFIGURATION
+           ========================================================================= */
+        const APP_CONFIG = {
+            apiKey: 'c9a9411578c3859ffffd575268a1a714',
+            polygonId: '6ab02d42ca96276bcc3c371a',
+            apiBaseUrl: 'https://api.agromonitoring.com/agro/1.0'
+        };
+
+        const state = {
+            ndvi: 0.0,
+            moisture: 0,
+            temp: 0,
+            surfaceTemp: 0,
+            windSpeed: 0,
+            rain: 0,
+            weatherMain: 'Clear',
+            activeMode: '3d',
+            polygon: null
+        };
+
+        let leafletMap = null;
+        let leafletGeoLayer = null;
+        let chartInstance = null;
+        let rainChartInstance = null;
+
+        let scene, camera, renderer, controls;
+        let cropGroup, rainParticles;
+
+        const canvas2d = document.getElementById('canvas-2d');
+        const ctx2d = canvas2d.getContext('2d');
+
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // Multi-proxy fallback fetcher with automatic retry
+        async function fetchAgro(endpoint, params = {}) {
+            const urlObj = new URL(`${APP_CONFIG.apiBaseUrl}${endpoint}`);
+            urlObj.searchParams.set('appid', APP_CONFIG.apiKey);
+            for (const [key, val] of Object.entries(params)) {
+                urlObj.searchParams.set(key, val);
+            }
+            const targetUrl = urlObj.toString();
+
+            // Try direct fetch first, followed by rotating proxies
+            const proxyProviders = [
+                targetUrl,
+                `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+            ];
+
+            let lastError = null;
+
+            for (const url of proxyProviders) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4500);
+                    const res = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (res.ok) {
+                        return await res.json();
+                    }
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+
+            throw lastError || new Error(`CORS or rate limit on endpoint ${endpoint}`);
+        }
+
+        // Offline / Simulation fallback data in case external CORS proxies throttle
+        function loadFallbackTelemetry() {
+            state.ndvi = 0.68;
+            state.moisture = 27;
+            state.temp = 23;
+            state.surfaceTemp = 26;
+            state.windSpeed = 11;
+            state.rain = 0;
+            state.weatherMain = 'Clear';
+
+            const weatherDesc = document.getElementById('kpi-weather-desc');
+            if (weatherDesc) weatherDesc.innerText = 'Clear sky · Optimal growing conditions';
+
+            const mockGeoJson = {
+                type: "Feature",
+                properties: {},
+                geometry: {
+                    type: "Polygon",
+                    coordinates: [[
+                        [78.9620, 20.5930],
+                        [78.9660, 20.5935],
+                        [78.9655, 20.5980],
+                        [78.9610, 20.5975],
+                        [78.9620, 20.5930]
+                    ]]
+                }
+            };
+            renderMap(mockGeoJson);
+
+            const now = Math.floor(Date.now() / 1000);
+            const mockNDVI = Array.from({ length: 8 }, (_, i) => ({
+                dt: now - (7 - i) * 4 * 86400,
+                data: { mean: 0.52 + (i * 0.024) }
+            }));
+            renderHistoryChart(mockNDVI);
+
+            const mockForecast = Array.from({ length: 16 }, (_, i) => ({
+                dt: now + i * 3 * 3600,
+                rain: { '3h': (i >= 5 && i <= 8) ? parseFloat((Math.sin(i) * 2.2 + 2.5).toFixed(1)) : 0 }
+            }));
+            renderRainForecastChart(mockForecast);
+
+            updateDashboardUI();
+            update3DScene();
+        }
+
+        async function fetchLiveAgroData() {
+            const refreshIcon = document.getElementById('refresh-icon');
+            const badge = document.getElementById('api-status-badge');
+            if (refreshIcon) refreshIcon.classList.add('animate-spin');
+            if (badge) badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping mr-1.5 inline-block"></span> Syncing Telemetry...';
+
+            const polyLabel = document.getElementById('sidebar-poly-label');
+            if (polyLabel) polyLabel.innerText = `Poly: ${APP_CONFIG.polygonId.slice(0, 8)}...`;
+
+            let hasLiveHit = false;
+
+            try {
+                // 1. Polygon boundary
+                try {
+                    const polyData = await fetchAgro(`/polygons/${APP_CONFIG.polygonId}`);
+                    if (polyData && polyData.geo_json) {
+                        hasLiveHit = true;
+                        state.polygon = polyData;
+                        const fieldName = document.getElementById('field-name');
+                        if (fieldName) fieldName.innerText = polyData.name ? `${polyData.name} · Digital Twin` : 'Field Digital Twin';
+                        const fieldMeta = document.getElementById('field-meta');
+                        if (fieldMeta) fieldMeta.innerHTML = `Boundary ID: ${APP_CONFIG.polygonId} · Area: ${polyData.area ? polyData.area.toFixed(1) : '--'} ha`;
+                        const mapArea = document.getElementById('map-area');
+                        if (mapArea) mapArea.innerText = `Area: ${polyData.area ? polyData.area.toFixed(1) : '--'} ha`;
+                        renderMap(polyData.geo_json);
+                    }
+                } catch (e) {
+                    console.warn('Polygon fetch skipped:', e.message);
+                }
+
+                await sleep(200);
+
+                // 2. Soil Data
+                try {
+                    const soilData = await fetchAgro('/soil', { polyid: APP_CONFIG.polygonId });
+                    if (soilData) {
+                        hasLiveHit = true;
+                        if (soilData.moisture !== undefined) state.moisture = Math.round(soilData.moisture * 100);
+                        if (soilData.t10 !== undefined) state.temp = Math.round(soilData.t10 - 273.15);
+                        if (soilData.t0 !== undefined) state.surfaceTemp = Math.round(soilData.t0 - 273.15);
+                    }
+                } catch (e) {
+                    console.warn('Soil fetch skipped:', e.message);
+                }
+
+                await sleep(200);
+
+                // 3. Current Weather
+                try {
+                    const weatherData = await fetchAgro('/weather', { polyid: APP_CONFIG.polygonId });
+                    if (weatherData) {
+                        hasLiveHit = true;
+                        if (weatherData.wind && weatherData.wind.speed !== undefined) {
+                            state.windSpeed = Math.round(weatherData.wind.speed * 3.6);
+                        }
+                        state.rain = (weatherData.rain && weatherData.rain['1h']) ? weatherData.rain['1h'] : 0;
+                        if (weatherData.weather && weatherData.weather[0]) {
+                            state.weatherMain = weatherData.weather[0].main;
+                            const weatherDesc = document.getElementById('kpi-weather-desc');
+                            if (weatherDesc) weatherDesc.innerText = weatherData.weather[0].description;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Weather fetch skipped:', e.message);
+                }
+
+                await sleep(200);
+
+                // 4. NDVI History
+                const nowSec = Math.floor(Date.now() / 1000);
+                const thirtyDaysSec = nowSec - (30 * 24 * 60 * 60);
+                try {
+                    const ndviHistory = await fetchAgro('/ndvi/history', {
+                        polyid: APP_CONFIG.polygonId,
+                        start: thirtyDaysSec,
+                        end: nowSec
+                    });
+                    
+                    if (Array.isArray(ndviHistory) && ndviHistory.length > 0) {
+                        hasLiveHit = true;
+                        const latest = ndviHistory[ndviHistory.length - 1];
+                        state.ndvi = parseFloat((latest.data?.mean || 0.65).toFixed(2));
+                        renderHistoryChart(ndviHistory);
+                    } else {
+                        renderEmptyHistoryChart('No NDVI records found');
+                    }
+                } catch (chartErr) {
+                    renderEmptyHistoryChart('NDVI Telemetry Offline');
+                }
+
+                await sleep(200);
+
+                // 5. Rain Forecast
+                try {
+                    const rainForecast = await fetchAgro('/weather/forecast', { polyid: APP_CONFIG.polygonId });
+                    if (Array.isArray(rainForecast) && rainForecast.length > 0) {
+                        hasLiveHit = true;
+                        renderRainForecastChart(rainForecast);
+                    } else {
+                        renderEmptyRainChart('No forecast available');
+                    }
+                } catch (forecastErr) {
+                    renderEmptyRainChart('Forecast Sync Offline');
+                }
+
+                if (!hasLiveHit) {
+                    throw new Error('CORS proxy blocked all incoming requests');
+                }
+
+                if (badge) badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 mr-1.5 inline-block"></span> Connected & Live';
+                updateDashboardUI();
+                update3DScene();
+
+            } catch (error) {
+                console.warn('API sync unavailable, using simulation fallback:', error.message);
+                if (badge) badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 mr-1.5 inline-block"></span> Simulation Mode (CORS Throttled)';
+                
+                const advTitle = document.getElementById('advisory-title');
+                if (advTitle) advTitle.innerText = 'Telemetry Advisory Mode';
+                
+                const advText = document.getElementById('advisory-text');
+                if (advText) advText.innerText = 'Public proxy is rate-limited. Interactive simulation twin rendered with estimated regional sensor data.';
+                
+                const advCard = document.getElementById('advisory-card');
+                if (advCard) advCard.className = 'p-4 rounded-xl border border-amber-300 bg-amber-50/50 flex items-start gap-3.5 shadow-sm';
+
+                loadFallbackTelemetry();
+            } finally {
+                if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+            }
+        }
+
+        function updateDashboardUI() {
+            const elNdvi = document.getElementById('kpi-ndvi');
+            if (elNdvi) elNdvi.innerText = state.ndvi.toFixed(2);
+            
+            const ndviStatus = document.getElementById('kpi-ndvi-status');
+            if (ndviStatus) {
+                if (state.ndvi > 0.6) {
+                    ndviStatus.innerText = 'Dense & Healthy';
+                    ndviStatus.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200';
+                } else if (state.ndvi > 0.35) {
+                    ndviStatus.innerText = 'Moderate Growth';
+                    ndviStatus.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200';
+                } else {
+                    ndviStatus.innerText = 'Sparse / Low Vigor';
+                    ndviStatus.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-50 text-rose-800 border border-rose-200';
+                }
+            }
+
+            const elMoist = document.getElementById('kpi-moisture');
+            if (elMoist) elMoist.innerText = `${state.moisture}%`;
+            
+            const moistStatus = document.getElementById('kpi-moisture-status');
+            if (moistStatus) {
+                if (state.moisture < 18) {
+                    moistStatus.innerText = 'Deficit Warning';
+                    moistStatus.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-50 text-rose-800 border border-rose-200';
+                } else if (state.moisture <= 35) {
+                    moistStatus.innerText = 'Optimal Moisture';
+                    moistStatus.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-sky-50 text-sky-800 border border-sky-200';
+                } else {
+                    moistStatus.innerText = 'Saturated Soil';
+                    moistStatus.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200';
+                }
+            }
+
+            const elTemp = document.getElementById('kpi-temp');
+            if (elTemp) elTemp.innerText = `${state.temp}°C`;
+
+            const elSurfTemp = document.getElementById('kpi-surface-temp');
+            if (elSurfTemp) elSurfTemp.innerText = `Surface: ${state.surfaceTemp}°C`;
+
+            const elWind = document.getElementById('kpi-wind');
+            if (elWind) elWind.innerText = `${state.windSpeed} km/h`;
+
+            const elRain = document.getElementById('kpi-rain');
+            if (elRain) elRain.innerText = `Rain: ${state.rain} mm`;
+
+            const advCard = document.getElementById('advisory-card');
+            const advIcon = document.getElementById('advisory-icon');
+            const advTitle = document.getElementById('advisory-title');
+            const advText = document.getElementById('advisory-text');
+            const advIconWrapper = document.getElementById('advisory-icon-wrapper');
+
+            if (advCard && advIcon && advTitle && advText && advIconWrapper) {
+                if (state.rain > 2) {
+                    advCard.className = 'p-4 rounded-xl border border-sky-300 bg-sky-50/50 flex items-start gap-3.5 shadow-sm';
+                    advIconWrapper.className = 'p-2.5 rounded-xl bg-sky-100 text-sky-700 border border-sky-200 mt-0.5';
+                    advIcon.setAttribute('data-lucide', 'cloud-rain');
+                    advTitle.innerText = 'Precipitation Active';
+                    advTitle.className = 'text-xs font-bold uppercase tracking-wider text-sky-900 font-display';
+                    advText.innerText = 'Natural precipitation is replenishing local topsoil. Suspend scheduled canal & tube-well irrigation to conserve water.';
+                } else if (state.moisture < 18) {
+                    advCard.className = 'p-4 rounded-xl border border-rose-300 bg-rose-50/50 flex items-start gap-3.5 shadow-sm';
+                    advIconWrapper.className = 'p-2.5 rounded-xl bg-rose-100 text-rose-700 border border-rose-200 mt-0.5';
+                    advIcon.setAttribute('data-lucide', 'alert-triangle');
+                    advTitle.innerText = 'Irrigation Recommended';
+                    advTitle.className = 'text-xs font-bold uppercase tracking-wider text-rose-900 font-display';
+                    advText.innerText = `Subsoil root moisture is down to ${state.moisture}%. Water deficit registered; micro-irrigation is advised.`;
+                } else {
+                    advCard.className = 'p-4 rounded-xl border border-emerald-200 bg-white flex items-start gap-3.5 shadow-sm';
+                    advIconWrapper.className = 'p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 mt-0.5';
+                    advIcon.setAttribute('data-lucide', 'check-circle-2');
+                    advTitle.innerText = 'Favorable Crop Conditions';
+                    advTitle.className = 'text-xs font-bold uppercase tracking-wider text-brand-forest font-display';
+                    advText.innerText = `NDVI vigor is ${state.ndvi.toFixed(2)} and root moisture is ${state.moisture}%. Soil parameters indicate healthy transpiration.`;
+                }
+            }
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function switchMode(mode) {
+            state.activeMode = mode;
+            ['3d', 'isometric', 'cross', 'satellite'].forEach(m => {
+                const btn = document.getElementById(`tab-${m}`);
+                if (btn) {
+                    if (m === mode) {
+                        btn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold transition bg-brand-forest text-white shadow-sm';
+                    } else {
+                        btn.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition text-brand-textMuted hover:text-brand-forest';
+                    }
+                }
+            });
+
+            const container3D = document.getElementById('canvas-3d-container');
+            const indicator = document.getElementById('sim-indicator');
+
+            if (mode === '3d') {
+                if (container3D) container3D.classList.remove('hidden');
+                if (canvas2d) canvas2d.classList.add('hidden');
+                if (indicator) indicator.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse ring-4 ring-emerald-200"></span> Interactive 3D Engine Active (Drag to Rotate)';
+            } else {
+                if (container3D) container3D.classList.add('hidden');
+                if (canvas2d) canvas2d.classList.remove('hidden');
+                resizeCanvas2D();
+                if (indicator) {
+                    if (mode === 'isometric') indicator.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span> Gram Isometric Parcel Grid';
+                    if (mode === 'cross') indicator.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-amber-600"></span> Subsoil & Root Horizon Section';
+                    if (mode === 'satellite') indicator.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-teal-600"></span> Multispectral Remote Sensing Sweep';
+                }
+            }
+        }
+
+        function init3DScene() {
+            const container = document.getElementById('canvas-3d-container');
+            if (!container) return;
+            const w = container.clientWidth || 800;
+            const h = container.clientHeight || 460;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0c1813);
+
+            camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
+            camera.position.set(0, 16, 26);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2.05;
+
+            const ambient = new THREE.AmbientLight(0xffffff, 0.75);
+            scene.add(ambient);
+
+            const sun = new THREE.DirectionalLight(0xfff8db, 1.3);
+            sun.position.set(15, 30, 15);
+            sun.castShadow = true;
+            scene.add(sun);
+
+            const groundGeo = new THREE.BoxGeometry(22, 1, 22);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x24180f, roughness: 0.95 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.position.y = -0.5;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            cropGroup = new THREE.Group();
+            scene.add(cropGroup);
+            buildCropMesh();
+
+            const rainGeo = new THREE.BufferGeometry();
+            const rainCount = 400;
+            const rainPos = new Float32Array(rainCount * 3);
+            for (let i = 0; i < rainCount * 3; i += 3) {
+                rainPos[i] = (Math.random() - 0.5) * 25;
+                rainPos[i + 1] = Math.random() * 25;
+                rainPos[i + 2] = (Math.random() - 0.5) * 25;
+            }
+            rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+            const rainMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.15, transparent: true, opacity: 0.7 });
+            rainParticles = new THREE.Points(rainGeo, rainMat);
+            scene.add(rainParticles);
+
+            window.addEventListener('resize', onWindowResize);
+            animate3D();
+        }
+
+        function buildCropMesh() {
+            if (!cropGroup) return;
+            while (cropGroup.children.length > 0) {
+                cropGroup.remove(cropGroup.children[0]);
+            }
+
+            const rows = 12;
+            const cols = 12;
+            const spacing = 1.4;
+
+            const greenVal = Math.min(255, Math.max(80, Math.floor(state.ndvi * 240)));
+            const redVal = Math.floor(180 * (1.0 - state.ndvi));
+            const plantColor = (redVal << 16) | (greenVal << 8) | 0x22;
+
+            const stalkGeo = new THREE.CylinderGeometry(0.04, 0.06, 2.2, 5);
+            stalkGeo.translate(0, 1.1, 0);
+            const stalkMat = new THREE.MeshStandardMaterial({ color: plantColor, roughness: 0.6 });
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const stalk = new THREE.Mesh(stalkGeo, stalkMat);
+                    stalk.position.set((r - rows / 2) * spacing, 0, (c - cols / 2) * spacing);
+                    stalk.castShadow = true;
+                    stalk.userData = {
+                        baseX: stalk.position.x,
+                        phase: Math.random() * Math.PI * 2,
+                        speed: 1 + Math.random() * 0.5
+                    };
+                    cropGroup.add(stalk);
+                }
+            }
+        }
+
+        function update3DScene() {
+            buildCropMesh();
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+
+            const time = performance.now() * 0.002;
+            const windFactor = state.windSpeed * 0.02;
+            const droop = state.moisture < 18 ? 0.35 : 0.0;
+
+            if (cropGroup) {
+                cropGroup.children.forEach(stalk => {
+                    const sway = Math.sin(time * stalk.userData.speed + stalk.userData.phase) * windFactor;
+                    stalk.rotation.z = sway + droop;
+                });
+            }
+
+            if (rainParticles) {
+                const positions = rainParticles.geometry.attributes.position.array;
+                const isRaining = state.rain > 0 || state.weatherMain === 'Rain';
+                rainParticles.visible = isRaining;
+
+                if (isRaining) {
+                    for (let i = 1; i < positions.length; i += 3) {
+                        positions[i] -= 0.4;
+                        if (positions[i] < 0) positions[i] = 25;
+                    }
+                    rainParticles.geometry.attributes.position.needsUpdate = true;
+                }
+            }
+
+            if (controls) controls.update();
+            if (renderer && scene && camera) renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-3d-container');
+            if (!container || !camera || !renderer) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+            resizeCanvas2D();
+        }
+
+        function resizeCanvas2D() {
+            if (!canvas2d) return;
+            canvas2d.width = canvas2d.clientWidth * window.devicePixelRatio;
+            canvas2d.height = canvas2d.clientHeight * window.devicePixelRatio;
+        }
+
+        function render2DLoop() {
+            if (state.activeMode !== '3d' && canvas2d && ctx2d) {
+                const w = canvas2d.width;
+                const h = canvas2d.height;
+                ctx2d.clearRect(0, 0, w, h);
+
+                if (state.activeMode === 'isometric') drawIsometricGrid(w, h);
+                else if (state.activeMode === 'cross') drawCrossSection(w, h);
+                else if (state.activeMode === 'satellite') drawSatelliteRadar(w, h);
+            }
+            requestAnimationFrame(render2DLoop);
+        }
+
+        function drawIsometricGrid(w, h) {
+            ctx2d.save();
+            ctx2d.scale(window.devicePixelRatio, window.devicePixelRatio);
+            const cw = w / window.devicePixelRatio;
+            const ch = h / window.devicePixelRatio;
+
+            ctx2d.translate(cw / 2, ch / 3);
+
+            const tileW = 58;
+            const tileH = 29;
+            const gridSize = 5;
+
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const x = (c - r) * tileW;
+                    const y = (c + r) * tileH;
+
+                    ctx2d.beginPath();
+                    ctx2d.moveTo(x, y);
+                    ctx2d.lineTo(x + tileW, y + tileH);
+                    ctx2d.lineTo(x, y + tileH * 2);
+                    ctx2d.lineTo(x - tileW, y + tileH);
+                    ctx2d.closePath();
+
+                    const dryColor = '#3f2c1f';
+                    const lushColor = '#104d33';
+                    ctx2d.fillStyle = state.ndvi > 0.5 ? lushColor : dryColor;
+                    ctx2d.fill();
+                    ctx2d.strokeStyle = 'rgba(255,255,255,0.1)';
+                    ctx2d.lineWidth = 1.5;
+                    ctx2d.stroke();
+
+                    ctx2d.fillStyle = state.ndvi > 0.5 ? '#22c55e' : '#eab308';
+                    ctx2d.fillRect(x - 2, y + 8, 4, -14 * (state.ndvi * 1.5));
+                }
+            }
+            ctx2d.restore();
+        }
+
+        function drawCrossSection(w, h) {
+            ctx2d.save();
+            ctx2d.scale(window.devicePixelRatio, window.devicePixelRatio);
+            const cw = w / window.devicePixelRatio;
+            const ch = h / window.devicePixelRatio;
+            const groundY = ch * 0.45;
+
+            ctx2d.fillStyle = '#0f241a';
+            ctx2d.fillRect(0, 0, cw, groundY);
+
+            ctx2d.fillStyle = '#261b12';
+            ctx2d.fillRect(0, groundY, cw, 60);
+            ctx2d.fillStyle = '#17100b';
+            ctx2d.fillRect(0, groundY + 60, cw, ch - groundY - 60);
+
+            ctx2d.fillStyle = '#d1e0d7';
+            ctx2d.font = '12px "Plus Jakarta Sans", sans-serif';
+            ctx2d.fillText('Topsoil: 0 cm (Root Crown Surface)', 16, groundY + 25);
+            ctx2d.fillText(`Subsoil Root Horizon: 10 cm Depth | Moisture: ${state.moisture}% | Temp: ${state.temp}°C`, 16, groundY + 80);
+
+            const plantX = cw / 2;
+            ctx2d.fillStyle = state.ndvi > 0.5 ? '#16a34a' : '#ca8a04';
+            ctx2d.beginPath();
+            ctx2d.arc(plantX, groundY - 50, 45, 0, Math.PI * 2);
+            ctx2d.fill();
+
+            ctx2d.strokeStyle = '#15803d';
+            ctx2d.lineWidth = 6;
+            ctx2d.beginPath();
+            ctx2d.moveTo(plantX, groundY);
+            ctx2d.lineTo(plantX, groundY - 50);
+            ctx2d.stroke();
+
+            ctx2d.strokeStyle = '#a3b899';
+            ctx2d.lineWidth = 2.5;
+            ctx2d.beginPath();
+            ctx2d.moveTo(plantX, groundY);
+            ctx2d.quadraticCurveTo(plantX - 40, groundY + 70, plantX - 60, groundY + 130);
+            ctx2d.moveTo(plantX, groundY);
+            ctx2d.quadraticCurveTo(plantX + 40, groundY + 70, plantX + 60, groundY + 130);
+            ctx2d.stroke();
+
+            const time = performance.now() * 0.003;
+            ctx2d.fillStyle = '#38bdf8';
+            for (let i = 0; i < 6; i++) {
+                const prog = (time + i / 6) % 1;
+                const py = groundY + 130 - prog * 130;
+                ctx2d.beginPath();
+                ctx2d.arc(plantX - 60 * (1 - prog), py, 3, 0, Math.PI * 2);
+                ctx2d.arc(plantX + 60 * (1 - prog), py, 3, 0, Math.PI * 2);
+                ctx2d.fill();
+            }
+
+            ctx2d.restore();
+        }
+
+        function drawSatelliteRadar(w, h) {
+            ctx2d.save();
+            ctx2d.scale(window.devicePixelRatio, window.devicePixelRatio);
+            const cw = w / window.devicePixelRatio;
+            const ch = h / window.devicePixelRatio;
+            const cx = cw / 2;
+            const cy = ch / 2;
+            const r = Math.min(cx, cy) - 30;
+
+            ctx2d.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+            ctx2d.lineWidth = 1.5;
+            ctx2d.beginPath();
+            ctx2d.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx2d.stroke();
+
+            ctx2d.beginPath();
+            ctx2d.arc(cx, cy, r * 0.6, 0, Math.PI * 2);
+            ctx2d.stroke();
+
+            const angle = (performance.now() * 0.0015) % (Math.PI * 2);
+            const sweepGrad = ctx2d.createRadialGradient(cx, cy, 10, cx, cy, r);
+            sweepGrad.addColorStop(0, 'rgba(52, 211, 153, 0.35)');
+            sweepGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+            ctx2d.fillStyle = sweepGrad;
+            ctx2d.beginPath();
+            ctx2d.moveTo(cx, cy);
+            ctx2d.arc(cx, cy, r, angle - 0.4, angle);
+            ctx2d.closePath();
+            ctx2d.fill();
+
+            ctx2d.fillStyle = state.ndvi > 0.5 ? '#16a34a' : '#d97706';
+            ctx2d.beginPath();
+            ctx2d.rect(cx - 35, cy - 35, 70, 70);
+            ctx2d.fill();
+            ctx2d.strokeStyle = '#ffffff';
+            ctx2d.stroke();
+
+            ctx2d.fillStyle = '#ffffff';
+            ctx2d.font = 'bold 12px "Plus Jakarta Sans", sans-serif';
+            ctx2d.fillText(`NDVI: ${state.ndvi.toFixed(2)}`, cx - 30, cy + 5);
+
+            ctx2d.restore();
+        }
+
+        function renderMap(geoJson) {
+            const mapEl = document.getElementById('map');
+            if (!mapEl) return;
+
+            if (!leafletMap) {
+                leafletMap = L.map('map', { attributionControl: false }).setView([20.5937, 78.9629], 13);
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 19
+                }).addTo(leafletMap);
+            }
+
+            if (leafletGeoLayer) leafletMap.removeLayer(leafletGeoLayer);
+
+            leafletGeoLayer = L.geoJSON(geoJson, {
+                style: {
+                    color: '#10b981',
+                    weight: 3,
+                    opacity: 1,
+                    fillColor: '#10b981',
+                    fillOpacity: 0.35
+                }
+            }).addTo(leafletMap);
+
+            try {
+                leafletMap.fitBounds(leafletGeoLayer.getBounds(), { padding: [24, 24] });
+            } catch (e) {
+                console.warn('Could not fit bounds:', e);
+            }
+        }
+
+        function renderHistoryChart(historyData) {
+            const labels = historyData.map(d => new Date(d.dt * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+            const ndviValues = historyData.map(d => (d.data && d.data.mean !== undefined) ? parseFloat(d.data.mean.toFixed(2)) : 0);
+            createOrUpdateChart(labels, ndviValues);
+        }
+
+        function renderEmptyHistoryChart(msg) {
+            createOrUpdateChart([msg], [0]);
+        }
+
+        function createOrUpdateChart(labels, values) {
+            const chartCanvas = document.getElementById('historyChart');
+            if (!chartCanvas) return;
+            const ctx = chartCanvas.getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.35)');
+            gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Crop Greenness (NDVI)',
+                        data: values,
+                        borderColor: '#0d5c3f',
+                        backgroundColor: gradient,
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.35,
+                        pointBackgroundColor: '#0d5c3f',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4.5,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 1.0,
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                            ticks: { color: '#627c6f', font: { size: 10 } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#627c6f', font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderRainForecastChart(forecastData) {
+            const slice = forecastData.slice(0, 16);
+            const labels = slice.map(d => new Date(d.dt * 1000).toLocaleString(undefined, { weekday: 'short', hour: 'numeric' }));
+            const rainValues = slice.map(d => {
+                const mm = d.rain && (d.rain['3h'] !== undefined ? d.rain['3h'] : d.rain);
+                return mm ? parseFloat(mm.toFixed(1)) : 0;
+            });
+
+            const totalRain = rainValues.reduce((a, b) => a + b, 0);
+            const nextRainIdx = rainValues.findIndex(v => v > 0);
+            const summary = document.getElementById('rain-forecast-summary');
+            if (summary) {
+                if (totalRain === 0) {
+                    summary.innerText = 'Dry conditions: 0.0 mm next 48h';
+                } else if (nextRainIdx === 0) {
+                    summary.innerText = `Active rain · ${totalRain.toFixed(1)} mm estimated`;
+                } else {
+                    summary.innerText = `Rain in ~${nextRainIdx * 3}h · ${totalRain.toFixed(1)} mm estimated`;
+                }
+            }
+
+            createOrUpdateRainChart(labels, rainValues);
+        }
+
+        function renderEmptyRainChart(msg) {
+            const summary = document.getElementById('rain-forecast-summary');
+            if (summary) summary.innerText = msg;
+            createOrUpdateRainChart([msg], [0]);
+        }
+
+        function createOrUpdateRainChart(labels, values) {
+            const rainCanvas = document.getElementById('rainForecastChart');
+            if (!rainCanvas) return;
+            const ctx = rainCanvas.getContext('2d');
+            if (rainChartInstance) rainChartInstance.destroy();
+
+            const barGrad = ctx.createLinearGradient(0, 0, 0, 190);
+            barGrad.addColorStop(0, '#0284c7');
+            barGrad.addColorStop(1, 'rgba(2, 132, 199, 0.25)');
+
+            rainChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Precipitation (mm)',
+                        data: values,
+                        backgroundColor: barGrad,
+                        borderColor: '#0369a1',
+                        borderWidth: 1.5,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        maxBarThickness: 24
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#09251c',
+                            titleColor: '#ffffff',
+                            bodyColor: '#38bdf8',
+                            borderColor: 'rgba(56, 189, 248, 0.3)',
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: {
+                                label: (ctx) => `${ctx.parsed.y} mm precipitation`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                            ticks: { 
+                                color: '#627c6f', 
+                                font: { size: 10 },
+                                callback: (val) => `${val} mm`
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#627c6f', font: { size: 9 }, maxRotation: 45, minRotation: 45 }
+                        }
+                    }
+                }
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) lucide.createIcons();
+            init3DScene();
+            resizeCanvas2D();
+            render2DLoop();
+            fetchLiveAgroData();
+        });
+    </script>
+</body>
+</html>

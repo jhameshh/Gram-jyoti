@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gram Jyoti · Recommended Crops & Agro-Advisory</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Plus Jakarta Sans & Outfit -->
+   <!-- Google Fonts: Chivo, Space Grotesk & Albert Sans -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=Chivo:wght@800;900&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Leaflet GIS Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        tailwind.config = {
+    theme: {
+        extend: {
+            fontFamily: {
+                sans: ['"Albert Sans"', 'sans-serif'],
+                display: ['"Chivo"', 'sans-serif'],
+                subheading: ['"Space Grotesk"', 'sans-serif'],
+            },
+            colors: {
+                brand: {
+                    forest: '#0d3829',
+                    darkTeal: '#09251c',
+                    sidebar: '#071e16',
+                    activeNav: '#144c38',
+                    sage: '#eaf0ea',
+                    cardBg: '#ffffff',
+                    cardBorder: '#e1e8e2',
+                    textDark: '#1a2e26',
+                    textMuted: '#587065',
+                    gold: '#d97706',
+                    water: '#0284c7'
+                }
+            }
+        }
+    }
+}
+    </script>
+    <style>
+        body {
+            background-color: #f2f6f3;
+            color: #1a2e26;
+        }
+
+        .rural-card {
+            background-color: #ffffff;
+            border: 1px solid #e2ebe4;
+            border-radius: 16px;
+            box-shadow: 0 4px 18px -2px rgba(13, 56, 41, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .rural-card:hover {
+            box-shadow: 0 10px 24px -4px rgba(13, 56, 41, 0.1);
+            border-color: #b9d5c4;
+            transform: translateY(-2px);
+        }
+
+        .rural-hero-pattern {
+            background: linear-gradient(135deg, rgba(9, 37, 28, 0.94) 0%, rgba(13, 56, 41, 0.88) 100%),
+                        url('https://images.unsplash.com/photo-1592982537447-6f2a6a0c7c18?q=80&w=1600&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center 50%;
+        }
+
+        .leaflet-container {
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased flex flex-col selection:bg-emerald-600 selection:text-white">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-brand-darkTeal text-emerald-50 border-b border-emerald-900/60 sticky top-0 z-50 shadow-md">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3.5">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-display font-extrabold text-lg tracking-tight text-white">ग्राम ज्योति · Gram Jyoti</span>
+                    </div>
+                    <p class="text-[11px] text-emerald-300/80 font-medium">Digital Agriculture & Sustainable Rural Telemetry</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <span id="api-status-badge" class="text-xs text-emerald-300 font-medium flex items-center">
+                    <span class="w-2 h-2 rounded-full bg-slate-400 mr-1.5 inline-block"></span> Initializing...
+                </span>
+                <button id="btn-refresh" onclick="fetchLiveAgroData()" class="group inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-700/60 hover:bg-emerald-600 text-white border border-emerald-500/40 transition active:scale-95 shadow-sm">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 transition-transform duration-500 group-hover:rotate-180" id="refresh-icon"></i>
+                    <span class="hidden sm:inline">Evaluate Soil & Season</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex-grow flex max-w-[1600px] w-full mx-auto">
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-brand-sidebar text-emerald-100 hidden md:flex flex-col justify-between py-6 px-4 border-r border-emerald-950 shrink-0">
+            <div class="space-y-6">
+                <div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-400/70 px-3">Village Overview</span>
+                    <nav class="mt-2 space-y-1">
+                        <a href="index.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-emerald-200/80 hover:bg-emerald-900/40 hover:text-white transition">
+                            <i data-lucide="layout-dashboard" class="w-4 h-4 text-emerald-400"></i>
+                            Crop Digital Twin
+                        </a>
+                        <a href="solar.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-medium text-emerald-200/80 hover:bg-emerald-900/40 hover:text-white transition">
+                            <i data-lucide="sun-medium" class="w-4 h-4 text-amber-400"></i>
+                            Solar & Micro-Grid
+                        </a>
+                        <a href="crop.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-brand-activeNav text-white border border-emerald-600/40 shadow-sm">
+                            <i data-lucide="droplet" class="w-4 h-4 text-sky-400"></i>
+                            Recommended Crops
+                        </a>
+                    </nav>
+                </div>
+            </div>
+
+            <div class="bg-brand-activeNav/60 rounded-xl p-3.5 border border-emerald-700/30 text-xs">
+                <div class="flex items-center gap-2 mb-1.5">
+                    <i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i>
+                    <span class="font-bold text-white">Advisory Engine</span>
+                </div>
+                <div class="text-[11px] text-emerald-200/90 font-mono" id="sidebar-season">Kharif / Zaid Transition</div>
+                <div class="text-[10px] text-emerald-400/70 mt-1">Multi-factor Bio-Climatic Fit</div>
+            </div>
+        </aside>
+
+        <!-- Main Body -->
+        <main class="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 overflow-x-hidden">
+            
+            <!-- Hero Landscape Section -->
+            <div class="rural-hero-pattern rounded-2xl p-6 sm:p-8 text-white relative shadow-lg overflow-hidden border border-emerald-800">
+                <div class="max-w-2xl relative z-10 space-y-2">
+                    <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold">
+                        <i data-lucide="microscope" class="w-3.5 h-3.5"></i> Soil Health Card & Bio-Climatic Matching
+                    </div>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold font-display tracking-tight text-white leading-tight" id="field-name">
+                        Field Crop Suitability & Rotation Advisory
+                    </h2>
+                    <p class="text-xs sm:text-sm text-emerald-100/90 leading-relaxed" id="field-meta">
+                        Matching real-time subsoil moisture, rhizosphere temperature, and seasonal rainfall projections with high-yield, drought-resilient rural cultivars.
+                    </p>
+                </div>
+
+                <div class="mt-5 pt-4 border-t border-emerald-600/30 flex flex-wrap gap-4 text-xs font-medium text-emerald-200">
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="calendar" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Active Sowing Cycle: <b class="text-white" id="stat-season">Late Rabi / Early Zaid</b></span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="layers" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Soil Texture: <b class="text-white">Clay Loam (Vertisol)</b></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agronomic Recommendation Banner -->
+            <div id="crop-advisory-card" class="p-4 rounded-xl border border-emerald-200 bg-white flex items-start gap-3.5 shadow-sm">
+                <div id="crop-advisory-icon-wrapper" class="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 mt-0.5">
+                    <i id="crop-advisory-icon" data-lucide="check-circle-2" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h4 id="crop-advisory-title" class="text-xs font-bold uppercase tracking-wider text-brand-forest font-display">Optimal Sowing Window Open</h4>
+                    <p id="crop-advisory-text" class="text-xs text-brand-textMuted mt-0.5">Evaluating soil parameters and microclimate telemetry...</p>
+                </div>
+            </div>
+
+            <!-- Soil & Microclimate Constraints for Selection -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Rhizosphere Moisture</span>
+                        <div class="p-2 rounded-xl bg-sky-50 text-brand-water border border-sky-100">
+                            <i data-lucide="droplet" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-3xl font-extrabold text-brand-water font-display" id="kpi-moisture">--%</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full border border-sky-200 bg-sky-50 text-sky-800" id="kpi-moisture-status">Syncing</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100">Root zone available water capacity (AWC)</p>
+                </div>
+
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Soil Horizon Temp (10cm)</span>
+                        <div class="p-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-100">
+                            <i data-lucide="thermometer" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-3xl font-extrabold text-amber-800 font-display" id="kpi-temp">--°C</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">Germination Ready</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100">Crucial for seed enzyme activation</p>
+                </div>
+
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Soil pH & Salinity</span>
+                        <div class="p-2 rounded-xl bg-emerald-50 text-brand-forest border border-emerald-100">
+                            <i data-lucide="flask-conical" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-3xl font-extrabold text-brand-forest font-display">6.8 pH</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">Neutral / Optimal</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100">EC: 0.42 dS/m · Low salinity index</p>
+                </div>
+
+                <div class="rural-card p-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold tracking-wider uppercase text-brand-textMuted">Primary N-P-K Status</span>
+                        <div class="p-2 rounded-xl bg-emerald-50 text-brand-forest border border-emerald-100">
+                            <i data-lucide="badge-percent" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline justify-between mt-3">
+                        <span class="text-2xl font-extrabold text-brand-forest font-display">M-H-M</span>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">Well Balanced</span>
+                    </div>
+                    <p class="text-[11px] text-brand-textMuted mt-3 pt-3 border-t border-slate-100">Medium N, High P, Medium K availability</p>
+                </div>
+            </section>
+
+            <!-- Top Recommended Crop Matches Grid -->
+            <section class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-brand-forest font-display flex items-center gap-2">
+                            <i data-lucide="award" class="w-5 h-5 text-amber-500"></i>
+                            Algorithmic Crop Matches (Sorted by Bio-Suitability)
+                        </h3>
+                        <p class="text-xs text-brand-textMuted">Calculated using live moisture, soil heat, historical rainfall, and mandi price margins</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5" id="crop-cards-container">
+                    <!-- Cards will be populated by JS -->
+                </div>
+            </section>
+
+            <!-- 3D Botanical Digital Twin Section -->
+            <section class="rural-card overflow-hidden">
+                <div class="p-3.5 border-b border-brand-cardBorder flex flex-wrap items-center justify-between gap-3 bg-brand-sage/40">
+                    <div class="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-brand-cardBorder text-xs shadow-sm">
+                        <button onclick="selectCropTwin('chickpea')" id="tab-chickpea" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold transition bg-brand-forest text-white shadow-sm">
+                            <i data-lucide="sprout" class="w-3.5 h-3.5"></i>
+                            Bengal Gram (Chickpea)
+                        </button>
+                        <button onclick="selectCropTwin('mustard')" id="tab-mustard" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition text-brand-textMuted hover:text-brand-forest">
+                            <i data-lucide="flower" class="w-3.5 h-3.5"></i>
+                            Yellow Mustard
+                        </button>
+                        <button onclick="selectCropTwin('millet')" id="tab-millet" class="flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition text-brand-textMuted hover:text-brand-forest">
+                            <i data-lucide="wheat" class="w-3.5 h-3.5"></i>
+                            Pearl Millet (Bajra)
+                        </button>
+                    </div>
+
+                    <span class="text-xs text-brand-forest flex items-center gap-2 font-medium" id="crop-twin-indicator">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse ring-4 ring-emerald-200"></span>
+                        Simulating Canopy Structure (Drag to Rotate)
+                    </span>
+                </div>
+
+                <div class="relative w-full h-[440px] bg-[#0c1813] overflow-hidden">
+                    <div id="canvas-3d-crop" class="absolute inset-0 w-full h-full"></div>
+                </div>
+            </section>
+
+            <!-- Lower Analytics: Agronomic Breakdown & GIS Soil Parcel -->
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Radar Assessment Chart -->
+                <div class="rural-card p-5 flex flex-col">
+                    <div class="flex items-center justify-between mb-3.5">
+                        <div>
+                            <h3 class="text-sm font-bold text-brand-forest flex items-center gap-2 font-display">
+                                <i data-lucide="radar" class="w-4 h-4 text-emerald-600"></i>
+                                Multi-Criteria Crop Suitability Index
+                            </h3>
+                            <p class="text-[11px] text-brand-textMuted">Comparing top 3 candidates across critical farm parameters</p>
+                        </div>
+                    </div>
+                    <div class="relative w-full h-72 flex-grow">
+                        <canvas id="cropRadarChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Parcel GIS Map with Soil Zonation -->
+                <div class="rural-card p-5 flex flex-col">
+                    <div class="flex items-center justify-between mb-3.5">
+                        <div>
+                            <h3 class="text-sm font-bold text-brand-forest flex items-center gap-2 font-display">
+                                <i data-lucide="map-pin" class="w-4 h-4 text-emerald-600"></i>
+                                Field Boundary & Soil Texture Zonation
+                            </h3>
+                            <p class="text-[11px] text-brand-textMuted">Satellite survey showing deep clay loam moisture retention</p>
+                        </div>
+                        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200" id="map-area">Area: -- ha</span>
+                    </div>
+                    <div id="map" class="w-full h-72 rounded-xl border border-brand-cardBorder flex-grow z-0 overflow-hidden shadow-inner"></div>
+                </div>
+            </section>
+
+            <!-- Economic & Mandi Margin Overview -->
+            <section class="rural-card p-6 border-l-4 border-l-emerald-600">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2.5 rounded-xl bg-emerald-50 text-brand-forest border border-emerald-200">
+                            <i data-lucide="trending-up" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-brand-forest font-display">Projected Net Yield, Revenue & Water Savings</h3>
+                            <p class="text-xs text-brand-textMuted">Comparative economic and resource impact based on local APMC Mandi rates</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm">
+                        MSP Benchmarked 2024-25
+                    </span>
+                </div>
+                <div class="relative w-full h-60 mt-2">
+                    <canvas id="cropEconomicsChart"></canvas>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-brand-darkTeal text-emerald-200/80 text-xs py-4 px-6 border-t border-emerald-900 mt-auto">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <i data-lucide="sprout" class="w-4 h-4 text-emerald-400"></i>
+                <span class="font-medium text-white">Gram Jyoti Smart Rural Development Initiative</span>
+            </div>
+            <div class="text-[11px] text-emerald-300">
+                Panchayat Raj & Rural Technology Resource Framework · Agro-Climatic Intelligence
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /* =========================================================================
+           CENTRAL CONFIG & STATE
+           ========================================================================= */
+        const APP_CONFIG = {
+            apiKey: 'c9a9411578c3859ffffd575268a1a714',
+            polygonId: '6ab02d42ca96276bcc3c371a',
+            apiBaseUrl: 'https://api.agromonitoring.com/agro/1.0'
+        };
+
+        const state = {
+            moisture: 26,
+            temp: 23,
+            areaHa: 2.4,
+            selectedCrop: 'chickpea',
+            polygon: null
+        };
+
+        const cropsDatabase = [
+            {
+                id: 'chickpea',
+                name: 'Bengal Gram / Desi Chana',
+                scientific: 'Cicer arietinum',
+                matchScore: 94,
+                duration: '105-115 Days',
+                waterRequirement: 'Low (250-300 mm)',
+                yieldRange: '18-22 Qtl/ha',
+                mspRate: '₹5,440 / Qtl',
+                netProfitEst: '₹62,000 / ha',
+                accentColor: 'emerald',
+                benefits: 'Fixes 40-50 kg/ha atmospheric nitrogen; ideal for clay-loam moisture retention.',
+                plantColor: 0x2e7d32,
+                seedColor: 0xd97706
+            },
+            {
+                id: 'mustard',
+                name: 'Yellow Mustard (Sarson)',
+                scientific: 'Brassica campestris',
+                matchScore: 89,
+                duration: '90-100 Days',
+                waterRequirement: 'Medium-Low (280-350 mm)',
+                yieldRange: '16-19 Qtl/ha',
+                mspRate: '₹5,650 / Qtl',
+                netProfitEst: '₹58,500 / ha',
+                accentColor: 'amber',
+                benefits: 'High oil recovery rate; resistant to mild winter cold spells; rapid root elongation.',
+                plantColor: 0x4d7c0f,
+                seedColor: 0xeab308
+            },
+            {
+                id: 'millet',
+                name: 'Pearl Millet (Bajra)',
+                scientific: 'Pennisetum glaucum',
+                matchScore: 85,
+                duration: '80-85 Days',
+                waterRequirement: 'Very Low (200-250 mm)',
+                yieldRange: '24-28 Qtl/ha',
+                mspRate: '₹2,500 / Qtl',
+                netProfitEst: '₹42,000 / ha',
+                accentColor: 'sky',
+                benefits: 'Exceptional drought tolerance; nutritious forage by-product; minimal fertilizer need.',
+                plantColor: 0x15803d,
+                seedColor: 0xa16207
+            }
+        ];
+
+        let leafletMap = null;
+        let leafletGeoLayer = null;
+        let radarChartInstance = null;
+        let economicsChartInstance = null;
+        let scene, camera, renderer, controls;
+        let plantCanopyGroup;
+
+        async function fetchAgro(endpoint, params = {}) {
+            const urlObj = new URL(`${APP_CONFIG.apiBaseUrl}${endpoint}`);
+            urlObj.searchParams.set('appid', APP_CONFIG.apiKey);
+            for (const [key, val] of Object.entries(params)) {
+                urlObj.searchParams.set(key, val);
+            }
+            const targetUrl = urlObj.toString();
+            const proxyProviders = [
+                targetUrl,
+                `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+            ];
+
+            let lastError = null;
+            for (const url of proxyProviders) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 4500);
+                    const res = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (res.ok) return await res.json();
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+            throw lastError || new Error(`Failed to load ${endpoint}`);
+        }
+
+        async function fetchLiveAgroData() {
+            const refreshIcon = document.getElementById('refresh-icon');
+            const badge = document.getElementById('api-status-badge');
+            if (refreshIcon) refreshIcon.classList.add('animate-spin');
+            if (badge) badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping mr-1.5 inline-block"></span> Calculating Suitability...';
+
+            let hasLiveHit = false;
+
+            try {
+                // Fetch Polygon
+                try {
+                    const polyData = await fetchAgro(`/polygons/${APP_CONFIG.polygonId}`);
+                    if (polyData && polyData.geo_json) {
+                        hasLiveHit = true;
+                        state.polygon = polyData;
+                        if (polyData.area) state.areaHa = polyData.area;
+                        const fieldName = document.getElementById('field-name');
+                        if (fieldName) fieldName.innerText = polyData.name ? `${polyData.name} · Crop Advisory` : 'Field Crop Suitability & Rotation';
+                        const mapArea = document.getElementById('map-area');
+                        if (mapArea) mapArea.innerText = `Area: ${state.areaHa.toFixed(1)} ha`;
+                        renderMap(polyData.geo_json);
+                    }
+                } catch (e) {
+                    console.warn('Polygon error:', e);
+                }
+
+                // Fetch Soil
+                try {
+                    const soilData = await fetchAgro('/soil', { polyid: APP_CONFIG.polygonId });
+                    if (soilData) {
+                        hasLiveHit = true;
+                        if (soilData.moisture !== undefined) state.moisture = Math.round(soilData.moisture * 100);
+                        if (soilData.t10 !== undefined) state.temp = Math.round(soilData.t10 - 273.15);
+                    }
+                } catch (e) {
+                    console.warn('Soil error:', e);
+                }
+
+                if (badge) badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 mr-1.5 inline-block"></span> Live Soil Matching Active';
+
+            } catch (err) {
+                console.warn('Fallback applied:', err.message);
+                if (badge) badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 mr-1.5 inline-block"></span> Bio-Climatic Model Mode';
+                loadFallbackData();
+            } finally {
+                if (refreshIcon) refreshIcon.classList.remove('animate-spin');
+                updateDashboardUI();
+                renderRadarChart();
+                renderEconomicsChart();
+            }
+        }
+
+        function loadFallbackData() {
+            state.moisture = 27;
+            state.temp = 23;
+            state.areaHa = 2.4;
+            const mockGeoJson = {
+                type: "Feature",
+                properties: {},
+                geometry: {
+                    type: "Polygon",
+                    coordinates: [[
+                        [78.9620, 20.5930],
+                        [78.9660, 20.5935],
+                        [78.9655, 20.5980],
+                        [78.9610, 20.5975],
+                        [78.9620, 20.5930]
+                    ]]
+                }
+            };
+            renderMap(mockGeoJson);
+        }
+
+        function updateDashboardUI() {
+            const elMoist = document.getElementById('kpi-moisture');
+            if (elMoist) elMoist.innerText = `${state.moisture}%`;
+
+            const moistStatus = document.getElementById('kpi-moisture-status');
+            if (moistStatus) {
+                if (state.moisture >= 22 && state.moisture <= 32) {
+                    moistStatus.innerText = 'Ideal Sowing Range';
+                    moistStatus.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200';
+                } else if (state.moisture < 22) {
+                    moistStatus.innerText = 'Moisture Deficit';
+                    moistStatus.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200';
+                }
+            }
+
+            const elTemp = document.getElementById('kpi-temp');
+            if (elTemp) elTemp.innerText = `${state.temp}°C`;
+
+            const advCard = document.getElementById('crop-advisory-card');
+            const advText = document.getElementById('crop-advisory-text');
+            if (advCard && advText) {
+                advText.innerText = `Current root moisture (${state.moisture}%) and subsoil temperature (${state.temp}°C) indicate high suitability for Pulses (Chickpea) and Oilseeds (Mustard) with minimal supplemental irrigation.`;
+            }
+
+            renderCropCards();
+        }
+
+        function renderCropCards() {
+            const container = document.getElementById('crop-cards-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            cropsDatabase.forEach(crop => {
+                const card = document.createElement('div');
+                card.className = `rural-card p-5 border-t-4 ${crop.id === state.selectedCrop ? 'border-t-emerald-600 ring-2 ring-emerald-600/30' : 'border-t-brand-cardBorder'} flex flex-col justify-between cursor-pointer`;
+                card.onclick = () => selectCropTwin(crop.id);
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-start justify-between mb-3">
+                            <div>
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-brand-textMuted font-mono">${crop.scientific}</span>
+                                <h4 class="text-base font-bold text-brand-forest font-display">${crop.name}</h4>
+                            </div>
+                            <span class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                ${crop.matchScore}% Fit
+                            </span>
+                        </div>
+
+                        <p class="text-xs text-brand-textMuted mb-4 leading-relaxed">${crop.benefits}</p>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs mb-4">
+                            <div class="p-2 rounded-lg bg-brand-sage/40 border border-brand-cardBorder">
+                                <span class="text-[10px] text-brand-textMuted block">Duration:</span>
+                                <strong class="text-brand-forest font-medium">${crop.duration}</strong>
+                            </div>
+                            <div class="p-2 rounded-lg bg-brand-sage/40 border border-brand-cardBorder">
+                                <span class="text-[10px] text-brand-textMuted block">Water Need:</span>
+                                <strong class="text-brand-water font-medium">${crop.waterRequirement}</strong>
+                            </div>
+                            <div class="p-2 rounded-lg bg-brand-sage/40 border border-brand-cardBorder">
+                                <span class="text-[10px] text-brand-textMuted block">Yield Est:</span>
+                                <strong class="text-brand-forest font-medium">${crop.yieldRange}</strong>
+                            </div>
+                            <div class="p-2 rounded-lg bg-brand-sage/40 border border-brand-cardBorder">
+                                <span class="text-[10px] text-brand-textMuted block">Est Profit:</span>
+                                <strong class="text-emerald-700 font-bold">${crop.netProfitEst}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="w-full py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${crop.id === state.selectedCrop ? 'bg-brand-forest text-white' : 'bg-brand-sage text-brand-forest hover:bg-emerald-100'}">
+                        <i data-lucide="${crop.id === state.selectedCrop ? 'check' : 'eye'}" class="w-3.5 h-3.5"></i>
+                        ${crop.id === state.selectedCrop ? 'Simulating in 3D' : 'Simulate 3D Crop'}
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function selectCropTwin(cropId) {
+            state.selectedCrop = cropId;
+            ['chickpea', 'mustard', 'millet'].forEach(id => {
+                const tab = document.getElementById(`tab-${id}`);
+                if (tab) {
+                    if (id === cropId) {
+                        tab.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold transition bg-brand-forest text-white shadow-sm';
+                    } else {
+                        tab.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition text-brand-textMuted hover:text-brand-forest';
+                    }
+                }
+            });
+
+            const crop = cropsDatabase.find(c => c.id === cropId);
+            const indicator = document.getElementById('crop-twin-indicator');
+            if (indicator && crop) {
+                indicator.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse ring-4 ring-emerald-200"></span> Simulating <b>${crop.name}</b> Architecture`;
+            }
+
+            renderCropCards();
+            buildBotanicalMesh();
+        }
+
+        /* =========================================================================
+           3D THREE.JS BOTANICAL CANOPY SIMULATION
+           ========================================================================= */
+        function init3DCropScene() {
+            const container = document.getElementById('canvas-3d-crop');
+            if (!container) return;
+            const w = container.clientWidth || 800;
+            const h = container.clientHeight || 440;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0c1813);
+
+            camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
+            camera.position.set(0, 14, 24);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(w, h);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2.05;
+
+            const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambient);
+
+            const sun = new THREE.DirectionalLight(0xfff5d6, 1.4);
+            sun.position.set(12, 25, 12);
+            sun.castShadow = true;
+            scene.add(sun);
+
+            // Soil Platform
+            const groundGeo = new THREE.BoxGeometry(22, 1, 22);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x271911, roughness: 0.95 });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.position.y = -0.5;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            plantCanopyGroup = new THREE.Group();
+            scene.add(plantCanopyGroup);
+
+            buildBotanicalMesh();
+
+            window.addEventListener('resize', onWindowResize);
+            animate3DCrop();
+        }
+
+        function buildBotanicalMesh() {
+            if (!plantCanopyGroup) return;
+            while (plantCanopyGroup.children.length > 0) {
+                plantCanopyGroup.remove(plantCanopyGroup.children[0]);
+            }
+
+            const current = cropsDatabase.find(c => c.id === state.selectedCrop) || cropsDatabase[0];
+            const rows = 9;
+            const cols = 9;
+            const spacing = 2.0;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const plant = new THREE.Group();
+                    const px = (r - rows / 2) * spacing;
+                    const pz = (c - cols / 2) * spacing;
+
+                    if (current.id === 'chickpea') {
+                        // Bushy, multi-branched legume structure
+                        const stemMat = new THREE.MeshStandardMaterial({ color: 0x3b7a42, roughness: 0.7 });
+                        const leafMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.5 });
+                        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 1.2, 5), stemMat);
+                        stem.position.y = 0.6;
+                        plant.add(stem);
+
+                        // Branching foliage spheres
+                        for (let i = 0; i < 4; i++) {
+                            const leafCluster = new THREE.Mesh(new THREE.DodecahedronGeometry(0.35, 1), leafMat);
+                            leafCluster.position.set(Math.sin(i * 1.5) * 0.4, 0.7 + i * 0.2, Math.cos(i * 1.5) * 0.4);
+                            plant.add(leafCluster);
+                        }
+                    } else if (current.id === 'mustard') {
+                        // Slender tall stalk with yellow flowering head
+                        const stalkMat = new THREE.MeshStandardMaterial({ color: 0x4d7c0f });
+                        const flowerMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.3 });
+                        const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.07, 2.6, 5), stalkMat);
+                        stalk.position.y = 1.3;
+                        plant.add(stalk);
+
+                        const flowerHead = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 8), flowerMat);
+                        flowerHead.position.y = 2.5;
+                        plant.add(flowerHead);
+                    } else if (current.id === 'millet') {
+                        // Tall erect cereal grass with long spike
+                        const stalkMat = new THREE.MeshStandardMaterial({ color: 0x166534 });
+                        const spikeMat = new THREE.MeshStandardMaterial({ color: 0xa16207, roughness: 0.8 });
+                        const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 3.2, 5), stalkMat);
+                        stalk.position.y = 1.6;
+                        plant.add(stalk);
+
+                        const spike = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.1, 8), spikeMat);
+                        spike.position.y = 3.0;
+                        plant.add(spike);
+                    }
+
+                    plant.position.set(px, 0, pz);
+                    plant.userData = { phase: Math.random() * Math.PI, speed: 1.2 + Math.random() * 0.5 };
+                    plantCanopyGroup.add(plant);
+                }
+            }
+        }
+
+        function animate3DCrop() {
+            requestAnimationFrame(animate3DCrop);
+            const time = performance.now() * 0.002;
+            if (plantCanopyGroup) {
+                plantCanopyGroup.children.forEach(plant => {
+                    plant.rotation.z = Math.sin(time * plant.userData.speed + plant.userData.phase) * 0.05;
+                });
+            }
+            if (controls) controls.update();
+            if (renderer && scene && camera) renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-3d-crop');
+            if (!container || !camera || !renderer) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        /* =========================================================================
+           RADAR & ECONOMIC CHARTS
+           ========================================================================= */
+        function renderRadarChart() {
+            const chartCanvas = document.getElementById('cropRadarChart');
+            if (!chartCanvas) return;
+            const ctx = chartCanvas.getContext('2d');
+            if (radarChartInstance) radarChartInstance.destroy();
+
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['Drought Resilience', 'Nitrogen Benefit', 'Mandi Margin', 'Low Pest Vulnerability', 'Soil Moisture Match', 'Short Duration'],
+                    datasets: [
+                        {
+                            label: 'Bengal Gram (Chickpea)',
+                            data: [90, 95, 88, 82, 94, 85],
+                            borderColor: '#0d5c3f',
+                            backgroundColor: 'rgba(13, 92, 63, 0.25)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#0d5c3f'
+                        },
+                        {
+                            label: 'Yellow Mustard',
+                            data: [82, 60, 92, 75, 88, 90],
+                            borderColor: '#d97706',
+                            backgroundColor: 'rgba(217, 119, 6, 0.2)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#d97706'
+                        },
+                        {
+                            label: 'Pearl Millet',
+                            data: [98, 50, 70, 92, 78, 96],
+                            borderColor: '#0284c7',
+                            backgroundColor: 'rgba(2, 132, 199, 0.2)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#0284c7'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(0,0,0,0.08)' },
+                            grid: { color: 'rgba(0,0,0,0.06)' },
+                            pointLabels: {
+                                color: '#1a2e26',
+                                font: { size: 10, family: 'Plus Jakarta Sans', weight: '600' }
+                            },
+                            ticks: { display: false, min: 40, max: 100 }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#1a2e26', font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderEconomicsChart() {
+            const chartCanvas = document.getElementById('cropEconomicsChart');
+            if (!chartCanvas) return;
+            const ctx = chartCanvas.getContext('2d');
+            if (economicsChartInstance) economicsChartInstance.destroy();
+
+            economicsChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Bengal Gram (Desi Chana)', 'Yellow Mustard', 'Pearl Millet (Bajra)'],
+                    datasets: [
+                        {
+                            label: 'Net Revenue (₹/ha)',
+                            data: [62000, 58500, 42000],
+                            backgroundColor: '#0d5c3f',
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Cultivation Cost (₹/ha)',
+                            data: [26000, 22000, 16000],
+                            backgroundColor: '#d97706',
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Water Consumption (m³/ha)',
+                            data: [2800, 3100, 2100],
+                            backgroundColor: '#0284c7',
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { color: '#1a2e26', font: { size: 11, family: 'Plus Jakarta Sans' } }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(0,0,0,0.05)' },
+                            ticks: { color: '#587065', font: { size: 10 } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#1a2e26', font: { size: 11, weight: '600' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderMap(geoJson) {
+            const mapEl = document.getElementById('map');
+            if (!mapEl) return;
+
+            if (!leafletMap) {
+                leafletMap = L.map('map', { attributionControl: false }).setView([20.5937, 78.9629], 13);
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 19
+                }).addTo(leafletMap);
+            }
+
+            if (leafletGeoLayer) leafletMap.removeLayer(leafletGeoLayer);
+
+            leafletGeoLayer = L.geoJSON(geoJson, {
+                style: {
+                    color: '#0d5c3f',
+                    weight: 3,
+                    opacity: 1,
+                    fillColor: '#34d399',
+                    fillOpacity: 0.35
+                }
+            }).addTo(leafletMap);
+
+            try {
+                leafletMap.fitBounds(leafletGeoLayer.getBounds(), { padding: [24, 24] });
+            } catch (e) {
+                console.warn('Map error:', e);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) lucide.createIcons();
+            init3DCropScene();
+            fetchLiveAgroData();
+        });
+    </script>
+</body>
+</html>
